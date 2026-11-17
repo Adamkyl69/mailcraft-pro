@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"mail_read","arguments":{"key":"a1:7:42:INBOX","headers":true}}}

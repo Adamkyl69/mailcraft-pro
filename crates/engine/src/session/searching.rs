@@ -175,6 +175,47 @@ pub(crate) struct SearchState {
     pub(crate) rows_merged: usize,
 }
 
+/// What belongs to the search on screen, as it's put aside for a while ([`SearchState::take_shown`]).
+#[derive(Default)]
+pub(crate) struct ShownSearch {
+    run: Option<run::SearchRun>,
+    kept: Option<kept::KeptList>,
+    pinned: HashSet<(String, String)>,
+    letting_go: Vec<SharedSummary>,
+    letting_go_keys: Vec<MessageKey>,
+    letting_go_answers: Vec<matching::Answers>,
+}
+
+impl SearchState {
+    /// The search on screen and what it's letting go of, taken out; the caches (`texts`,
+    /// `folded`, `readers`, ...) stay, they belong to every search.
+    pub(crate) fn take_shown(&mut self) -> ShownSearch {
+        ShownSearch {
+            run: self.run.take(),
+            kept: self.kept.take(),
+            pinned: std::mem::take(&mut self.pinned),
+            letting_go: std::mem::take(&mut self.letting_go),
+            letting_go_keys: std::mem::take(&mut self.letting_go_keys),
+            letting_go_answers: std::mem::take(&mut self.letting_go_answers),
+        }
+    }
+
+    /// Put back what [`SearchState::take_shown`] took. Whatever search was shown meanwhile is
+    /// gone (what it was letting go of is let go of after what comes back).
+    pub(crate) fn put_shown(&mut self, shown: ShownSearch) {
+        let ShownSearch { run, kept, pinned, mut letting_go, mut letting_go_keys, mut letting_go_answers } = shown;
+        self.run = run;
+        self.kept = kept;
+        self.pinned = pinned;
+        letting_go.append(&mut self.letting_go);
+        letting_go_keys.append(&mut self.letting_go_keys);
+        letting_go_answers.append(&mut self.letting_go_answers);
+        self.letting_go = letting_go;
+        self.letting_go_keys = letting_go_keys;
+        self.letting_go_answers = letting_go_answers;
+    }
+}
+
 /// Working out which of the user's messages wait for a reply ([`Session::awaiting_replies`]),
 /// a message at a time.
 pub(crate) struct AwaitingScan {

@@ -170,7 +170,7 @@ impl Session {
 
     /// A message as it's read: one without a `Date` gets the time the server took it in, as the
     /// list shows it (replies and forwards quoted it as sent on 1 January 1970).
-    fn parse_for_reading(&mut self, key: &MessageKey, raw: &[u8]) -> Option<Arc<mime::Parsed>> {
+    pub(super) fn parse_for_reading(&mut self, key: &MessageKey, raw: &[u8]) -> Option<Arc<mime::Parsed>> {
         self.body.parsed_here = self.body.parsed_here.wrapping_add(1);
         let p = mime::parse(raw)?;
         Some(self.for_reading(key, p))

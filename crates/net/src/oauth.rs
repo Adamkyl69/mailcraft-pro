@@ -120,7 +120,9 @@ pub fn b64url(data: &[u8]) -> String {
     mailcraft_model::base64::encode(data).replace('+', "-").replace('/', "_").trim_end_matches('=').to_string()
 }
 
-fn random(n: usize) -> Result<Vec<u8>> {
+/// `n` bytes from the system's secure random source (MCP tokens and the approval secret are made
+/// from them).
+pub fn random_bytes(n: usize) -> Result<Vec<u8>> {
     let mut v = vec![0u8; n];
     ring::rand::SystemRandom::new().fill(&mut v).map_err(|_| NetError::Protocol("no randomness available".into()))?;
     Ok(v)
@@ -129,12 +131,12 @@ fn random(n: usize) -> Result<Vec<u8>> {
 /// 32 bytes from the system's secure random source, base64url: a key nobody can guess (the
 /// app's single-instance socket asks it of every request).
 pub fn secret_token() -> Result<String> {
-    Ok(b64url(&random(32)?))
+    Ok(b64url(&random_bytes(32)?))
 }
 
 /// A PKCE verifier and its S256 challenge.
 pub fn pkce() -> Result<(String, String)> {
-    let verifier = b64url(&random(32)?);
+    let verifier = b64url(&random_bytes(32)?);
     let challenge = b64url(ring::digest::digest(&ring::digest::SHA256, verifier.as_bytes()).as_ref());
     Ok((verifier, challenge))
 }
@@ -339,7 +341,7 @@ fn authorize_with(
 ) -> Result<Tokens> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let redirect = format!("http://127.0.0.1:{}/", listener.local_addr()?.port());
-    let state = b64url(&random(16)?);
+    let state = b64url(&random_bytes(16)?);
     let (verifier, challenge) = pkce()?;
     let mut url = format!(
         "{}?response_type=code&client_id={}&redirect_uri={}&scope={}&state={state}&code_challenge={challenge}&code_challenge_method=S256",

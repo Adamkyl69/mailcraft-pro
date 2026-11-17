@@ -18,6 +18,7 @@ bin = [
     { name = "imap", bench = false, test = false, doc = false, path = "fuzz_targets/imap.rs" }, # a whole IMAP session from the server side
     { name = "index_text", bench = false, test = false, doc = false, path = "fuzz_targets/index_text.rs" }, # raw message sources read for search
     { name = "jmap", bench = false, test = false, doc = false, path = "fuzz_targets/jmap.rs" }, # JMAP replies, push events and URLs
+    { name = "mcp", bench = false, test = false, doc = false, path = "fuzz_targets/mcp.rs" }, # MCP requests from local AI apps
     { name = "mime_parse", bench = false, test = false, doc = false, path = "fuzz_targets/mime_parse.rs" }, # raw message sources
     { name = "msg", bench = false, test = false, doc = false, path = "fuzz_targets/pst/msg.rs" }, # Outlook message files (.msg)
     { name = "pdf", bench = false, test = false, doc = false, path = "fuzz_targets/print/pdf.rs" }, # a message printed: pictures embedded, tables laid out on pages
@@ -50,6 +51,7 @@ mailcraft-pst.path = "../crates/pst" # the .pst reader and writer
 mailcraft-print.path = "../crates/print" # messages as PDF pages
 mailcraft-pgp.path = "../crates/pgp" # OpenPGP
 rand_core = { version = "0.6", features = ["getrandom"] } # the decrypting generator
+serde_json = "1" # the JSON-RPC requests MCP takes
 mailcraft-store.path = "../crates/store" # the in-memory cache syncs write to, the search index
 
 # `cargo fuzz ... -O` builds with this profile, debug assertions and overflow checks on.

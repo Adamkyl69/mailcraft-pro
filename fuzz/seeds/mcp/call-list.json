@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"mail_list","arguments":{"account":"a1","folder":"INBOX","limit":20,"offset":0,"unread_only":true}}}

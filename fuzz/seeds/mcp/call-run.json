@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"mail_run","arguments":{"command":"mail.move","keys":["a1:7:42:INBOX","a1:7:43:INBOX"],"params":{"folder":"role:archive"}}}}

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":"s-6","method":"tools/call","params":{"name":"mail_search","arguments":{"query":"from:ann subject:\"the figures\" is:unread"}}}

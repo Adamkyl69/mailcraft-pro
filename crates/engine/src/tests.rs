@@ -156,32 +156,56 @@ fn calendar_mail(from: (&str, &str), subject: &str, mime: &str, ics: Vec<u8>, me
     mailcraft_mime::build(&d, &mailcraft_model::EmailAddress::new(from.0, from.1), NOW, message_id).unwrap()
 }
 
+thread_local! {
+    /// What the store logged of waits on this thread ([`waits_logged`]).
+    static WAITED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    /// What MCP logged on this thread ([`mcp_logged`]).
+    static MCP_LINES: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The one logger of the engine's tests: it counts the store's waits and keeps MCP's lines, each
+/// on the thread that logged them.
+struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, m: &log::Metadata<'_>) -> bool {
+        (m.level() <= log::Level::Warn && m.target() == "mailcraft_store::marking") || m.target() == "mailcraft::mcp"
+    }
+    fn log(&self, r: &log::Record<'_>) {
+        if !self.enabled(r.metadata()) {
+            return;
+        }
+        if r.target() == "mailcraft::mcp" {
+            MCP_LINES.with(|l| l.borrow_mut().push(r.args().to_string()));
+        } else {
+            WAITED.with(|w| w.set(w.get() + 1));
+        }
+    }
+    fn flush(&self) {}
+}
+
+fn install_logger() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        assert!(log::set_logger(&Logger).is_ok(), "the only logger of the engine's tests");
+        log::set_max_level(log::LevelFilter::Info);
+    });
+}
+
 /// How many waits the store has logged on this thread. A wait for the read marks, or for the
 /// lock every change of a list is made under, is logged (by `mailcraft_store::marking`, on the
 /// thread that waited) once it took over 50 ms or was given up. While a test holds the marks, a
 /// wait can't end sooner, so this count not moving shows the window's thread waited for none of
 /// them, without timing it on a busy machine.
 fn waits_logged() -> usize {
-    use std::cell::Cell;
-    thread_local!(static WAITED: Cell<usize> = const { Cell::new(0) });
-    struct Waits;
-    impl log::Log for Waits {
-        fn enabled(&self, m: &log::Metadata<'_>) -> bool {
-            m.level() <= log::Level::Warn && m.target() == "mailcraft_store::marking"
-        }
-        fn log(&self, r: &log::Record<'_>) {
-            if self.enabled(r.metadata()) {
-                WAITED.with(|w| w.set(w.get() + 1));
-            }
-        }
-        fn flush(&self) {}
-    }
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        assert!(log::set_logger(&Waits).is_ok(), "the only logger of the engine's tests");
-        log::set_max_level(log::LevelFilter::Warn);
-    });
-    WAITED.with(Cell::get)
+    install_logger();
+    WAITED.with(std::cell::Cell::get)
+}
+
+/// The lines MCP has logged on this thread (`mailcraft::mcp`).
+fn mcp_logged() -> Vec<String> {
+    install_logger();
+    MCP_LINES.with(|l| l.borrow().clone())
 }
 
 /// The seed the engine's tests start [`Xorshift`] from.
@@ -246,6 +270,7 @@ mod accounts;
 mod calendar;
 mod directory;
 mod mail;
+mod mcp;
 mod opening;
 mod organize;
 mod safety;

@@ -2032,6 +2032,7 @@ dependencies = [
  "mailcraft-smime",
  "mailcraft-store",
  "rand_core 0.6.4",
+ "serde_json",
 ]
 
 [[package]]

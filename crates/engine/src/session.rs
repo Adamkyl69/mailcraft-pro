@@ -24,6 +24,7 @@ mod accounts;
 mod changing;
 mod events;
 mod mailboxes;
+mod mcp;
 mod opening;
 mod organize;
 mod prefs;
@@ -41,6 +42,7 @@ use changing::Batch;
 use changing::keys_by_account;
 #[cfg(test)]
 pub(crate) use changing::{MOVED_IN_MAX, MovedIn};
+pub use mcp::{McpOutcome, McpState, Revealed};
 #[cfg(test)]
 pub(crate) use opening::source_lines;
 pub use opening::{BodyWork, PreparedBody, SOURCE_SHOWN, SourceView, Toward};
@@ -221,6 +223,12 @@ const CACHE_MESSAGES: usize = 300_000;
 /// line in the log).
 pub static PANICS_CAUGHT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+/// Everything a session holds, and what is shown of it.
+///
+/// A field that is **what the user sees** (the view and its list, the search on screen, the
+/// selection, the message open or being written) goes in `Session::aside` too
+/// (`session/mcp/aside.rs`), which puts those aside while an AI app's call runs over the mail;
+/// a field left out of it would be changed by that call under the user's hands.
 pub struct Session {
     pub store: Option<Store>,
     pub accounts: Vec<AccountState>,
@@ -448,6 +456,8 @@ pub struct Session {
     pub updates_stable_only: bool,
     /// File › About's update check.
     pub update: UpdateCheck,
+    /// MCP: local AI apps' tokens, and the calls waiting for the network (`session/mcp.rs`).
+    pub mcp: mcp::McpState,
 }
 
 const NOTICE_MAX: usize = 50;
@@ -569,6 +579,7 @@ impl Session {
             build_sha: None,
             updates_stable_only: false,
             update: UpdateCheck::NotAsked,
+            mcp: Default::default(),
         };
         if let Some(store) = s.store.clone() {
             match store.load_doc(RULES_DOC) {
@@ -609,6 +620,7 @@ impl Session {
         s.restore_unsent();
         s.load_pim();
         s.load_smime();
+        s.load_mcp();
         s.view = s.default_view();
         s.refresh_list();
         s

@@ -362,7 +362,7 @@ pub(super) fn filter(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"messages": s.list.len()}))
 }
 
-pub(super) fn summary_json(m: &mailcraft_model::Summary) -> Value {
+pub(crate) fn summary_json(m: &mailcraft_model::Summary) -> Value {
     json!({
         "key": m.key.to_id(),
         "date": m.date,

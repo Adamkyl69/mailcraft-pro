@@ -96,8 +96,10 @@ mod files;
 pub(crate) use files::message_preview;
 pub use files::{is_mail_file, is_message_file};
 mod home;
+mod mcp;
 mod meetings;
 mod navigation;
+pub(crate) use navigation::summary_json;
 mod pgp;
 mod pim;
 mod printing;
@@ -122,6 +124,7 @@ pub fn registry() -> Registry {
     all.extend(accounts::commands());
     all.extend(data_files::commands());
     all.extend(signatures::commands());
+    all.extend(mcp::commands());
     Registry::new(all)
 }
 

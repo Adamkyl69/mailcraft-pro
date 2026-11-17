@@ -10,6 +10,7 @@ impl Session {
         }
         // An account's data file had to itself by a compaction: what it sends waits for it.
         let Some(e) = self.defer_for_compaction(e) else { return };
+        self.mcp_saw(&e);
         // The To-Do Bar's flagged mail of a folder that changed is read again.
         if let Event::FolderChanged { account, folder } = &e {
             self.todo_folder_changed(account, folder);

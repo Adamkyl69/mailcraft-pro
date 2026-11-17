@@ -568,8 +568,8 @@ impl Session {
         self.mcp.memory_only = true;
     }
 
-    /// Why the owner's commands can't change the settings: they weren't read.
-    pub(crate) fn mcp_unusable(&self) -> Option<&'static str> {
+    /// Why the owner's commands can't change the settings: they weren't read (the card says so).
+    pub fn mcp_unusable(&self) -> Option<&'static str> {
         self.mcp.unread.then_some("the connected apps' settings couldn't be read")
     }
 }

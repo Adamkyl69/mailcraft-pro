@@ -29,6 +29,8 @@ skrifa = "0.49"
 sys-locale = "0.3"
 # PDF attachment thumbnails: a pure-Rust rasterizer (no unsafe code).
 hayro = { version = "0.9", default-features = false }
+# The authenticator app's QR code (File › Options › Connected apps), drawn as rectangles.
+qrcodegen = "1.8"
 # A search's time each frame: std's clock panics in the browser (the version egui's winit uses).
 web-time = "1.1"
 

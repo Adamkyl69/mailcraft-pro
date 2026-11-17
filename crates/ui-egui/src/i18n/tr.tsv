@@ -1823,3 +1823,41 @@ count	occurrences	kez
 	Stop sending and receiving	Göndermeyi ve almayı durdur
 	Sending	Gönderme
 	Receiving	Alma
+# File › Options › Connected apps
+	6-digit code	6 haneli kod
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Kendinizin de yazdığı bir yazışmada, gelen hesaptan, daha önce yazdığınız ya da kişi olarak kaydettiğiniz kişilere, eksiz ve MailCraft'ın uyaracağı hiçbir şey olmadan verilen yanıt.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Bu bilgisayardaki Claude Desktop ve Claude Code gibi yapay zekâ uygulamaları, MailCraft çalışırken postanızı okuyabilir ve düzenleyebilir. Her uygulama kendi belirtecini alır. Başka bir bilgisayardan hiçbir şeye erişilemez.
+	Allow connected apps	Bağlı uygulamalara izin ver
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Kabuk komutları çalıştırabilen bir yapay zekâ uygulaması bu korumaları aşabilir: kabuk komutlarını izin istemlerinin arkasında tutun.
+	Approval for sending	Göndermek için onay
+	Approval is on.	Onay açık.
+	Confirm	Onayla
+	Connected apps	Bağlı uygulamalar
+	Copy this token now: it won't be shown again.	Bu belirteci şimdi kopyalayın: bir daha gösterilmeyecek.
+	Expires {when}	Süresi {when} dolar
+	For Claude Code:	Claude Code için:
+	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop için, claude_desktop_config.json içinde:
+	Last used {date}	Son kullanım {date}
+	Made {date}	Oluşturulma {date}
+	Make a token first	Önce bir belirteç oluşturun
+	Make token	Belirteç oluştur
+	Most sends a day without a code	Kodsuz günlük en fazla gönderim
+	Never used	Hiç kullanılmadı
+	No tokens yet: make one for each app you connect.	Henüz belirteç yok: bağladığınız her uygulama için bir tane oluşturun.
+	Organize	Düzenleme
+	QR code for the authenticator app	Kimlik doğrulama uygulaması için QR kodu
+	Read	Okuma
+	Reset (a lost phone)	Sıfırla (telefon kayboldu)
+	Revoke	Geçersiz kıl
+	Scan this code with an authenticator app, or type the secret into it:	Bu kodu bir kimlik doğrulama uygulamasıyla tarayın ya da gizli anahtarı uygulamaya yazın:
+	Send replies without a code	Yanıtları kodsuz gönder
+	Sending is locked after 5 wrong codes.	Gönderme, 5 yanlış koddan sonra kilitlenir.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Aşağıdaki kuralların dışında göndermek için telefonunuzdaki bir kimlik doğrulama uygulamasından 6 haneli bir kod gerekir.
+	Set up	Kur
+	Set up again	Yeniden kur
+	The approval's secret isn't here: set it up again.	Onayın gizli anahtarı burada yok: yeniden kurun.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Bağlı uygulamaların ayarları okunamadı, bu yüzden burada hiçbir şey değiştirilemez.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Bu taşınabilir bir kopya: onay yalnızca bellekte tutulur, bu yüzden her açılıştan sonra yeniden kurun.
+	To {recipients}: {subject}	Alıcı {recipients}: {subject}
+	Waiting for approval	Onay bekliyor
+	What you approve with a code isn't counted	Kodla onayladıklarınız sayılmaz

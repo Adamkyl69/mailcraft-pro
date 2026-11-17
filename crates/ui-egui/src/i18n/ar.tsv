@@ -1818,3 +1818,41 @@ count	occurrences	مرات
 	Stop sending and receiving	إيقاف الإرسال والتلقي
 	Sending	الإرسال
 	Receiving	التلقي
+# File › Options › Connected apps
+	6-digit code	رمز من 6 أرقام
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	رد في محادثة كتبتَ فيها أنت أيضًا، من الحساب الذي وصلت إليه الرسالة، إلى أشخاص سبق أن راسلتهم أو حفظتهم كجهات اتصال، بلا مرفقات وبلا أي شيء سينبّه إليه MailCraft.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	يمكن لتطبيقات الذكاء الاصطناعي على هذا الكمبيوتر، مثل Claude Desktop وClaude Code، قراءة بريدك وتنظيمه في MailCraft ما دام يعمل. يحصل كل تطبيق على رمز مميّز خاص به. لا يمكن الوصول إلى أي شيء من كمبيوتر آخر.
+	Allow connected apps	السماح للتطبيقات المتصلة
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	يمكن لتطبيق ذكاء اصطناعي قادر على تشغيل أوامر الصدفة (shell) أن يتجاوز هذه الحمايات: أبقِ أوامر الصدفة الخاصة به خلف طلبات الأذونات.
+	Approval for sending	الموافقة على الإرسال
+	Approval is on.	الموافقة مفعّلة.
+	Confirm	تأكيد
+	Connected apps	التطبيقات المتصلة
+	Copy this token now: it won't be shown again.	انسخ هذا الرمز المميّز الآن: لن يظهر مرة أخرى.
+	Expires {when}	ينتهي {when}
+	For Claude Code:	لـ Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	لـ Claude Desktop، في claude_desktop_config.json:
+	Last used {date}	آخر استخدام {date}
+	Made {date}	أُنشئ {date}
+	Make a token first	أنشئ رمزًا مميّزًا أولًا
+	Make token	إنشاء رمز مميّز
+	Most sends a day without a code	الحد الأقصى للإرسال يوميًا بلا رمز
+	Never used	لم يُستخدم أبدًا
+	No tokens yet: make one for each app you connect.	لا توجد رموز مميّزة بعد: أنشئ رمزًا لكل تطبيق تربطه.
+	Organize	تنظيم
+	QR code for the authenticator app	رمز QR لتطبيق المصادقة
+	Read	قراءة
+	Reset (a lost phone)	إعادة ضبط (هاتف مفقود)
+	Revoke	إلغاء الرمز
+	Scan this code with an authenticator app, or type the secret into it:	امسح هذا الرمز بتطبيق مصادقة، أو اكتب فيه المفتاح السري:
+	Send replies without a code	إرسال الردود بلا رمز
+	Sending is locked after 5 wrong codes.	يُقفل الإرسال بعد 5 رموز خاطئة.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	يتطلب الإرسال خارج القواعد أدناه رمزًا من 6 أرقام من تطبيق مصادقة على هاتفك.
+	Set up	إعداد
+	Set up again	إعداد من جديد
+	The approval's secret isn't here: set it up again.	المفتاح السري للموافقة غير موجود هنا: أعد إعداده.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	تعذّرت قراءة إعدادات التطبيقات المتصلة، لذا لا يمكن تغيير أي شيء هنا.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	هذه نسخة محمولة: تُحفظ الموافقة في الذاكرة فقط، لذا أعد إعدادها بعد كل تشغيل.
+	To {recipients}: {subject}	إلى {recipients}: {subject}
+	Waiting for approval	بانتظار الموافقة
+	What you approve with a code isn't counted	ما توافق عليه برمز لا يُحتسب

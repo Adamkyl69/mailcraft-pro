@@ -1822,3 +1822,41 @@ count	occurrences	повторений
 	Stop sending and receiving	Остановить отправку и получение
 	Sending	Отправка
 	Receiving	Получение
+# File › Options › Connected apps
+	6-digit code	6-значный код
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Ответ в переписке, в которой вы писали сами, с того аккаунта, на который пришло письмо, людям, которым вы уже писали или которых сохранили в контактах, без вложений и без того, о чём MailCraft предупредил бы.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	ИИ-приложения на этом компьютере, например Claude Desktop и Claude Code, могут читать и упорядочивать вашу почту в MailCraft, пока он запущен. Каждое приложение получает собственный токен. С другого компьютера ничего недоступно.
+	Allow connected apps	Разрешить подключённые приложения
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	ИИ-приложение, которое может выполнять команды оболочки, способно обойти эти защиты: держите его команды оболочки за его запросами разрешения.
+	Approval for sending	Подтверждение отправки
+	Approval is on.	Подтверждение включено.
+	Confirm	Подтвердить
+	Connected apps	Подключённые приложения
+	Copy this token now: it won't be shown again.	Скопируйте этот токен сейчас: он больше не будет показан.
+	Expires {when}	Истекает {when}
+	For Claude Code:	Для Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	Для Claude Desktop, в claude_desktop_config.json:
+	Last used {date}	Последнее использование {date}
+	Made {date}	Создан {date}
+	Make a token first	Сначала создайте токен
+	Make token	Создать токен
+	Most sends a day without a code	Не более отправок в день без кода
+	Never used	Не использовался
+	No tokens yet: make one for each app you connect.	Токенов пока нет: создайте по одному для каждого подключаемого приложения.
+	Organize	Упорядочивание
+	QR code for the authenticator app	QR-код для приложения-аутентификатора
+	Read	Чтение
+	Reset (a lost phone)	Сбросить (телефон потерян)
+	Revoke	Отозвать
+	Scan this code with an authenticator app, or type the secret into it:	Отсканируйте этот код приложением-аутентификатором или введите в нём секретный ключ:
+	Send replies without a code	Отправлять ответы без кода
+	Sending is locked after 5 wrong codes.	Отправка блокируется после 5 неверных кодов.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Отправка вне указанных ниже правил требует 6-значного кода из приложения-аутентификатора на вашем телефоне.
+	Set up	Настроить
+	Set up again	Настроить заново
+	The approval's secret isn't here: set it up again.	Секретного ключа подтверждения здесь нет: настройте его заново.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Не удалось прочитать настройки подключённых приложений, поэтому здесь ничего нельзя изменить.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Это переносная копия: подтверждение хранится только в памяти, поэтому настраивайте его заново после каждого запуска.
+	To {recipients}: {subject}	Кому {recipients}: {subject}
+	Waiting for approval	Ожидает подтверждения
+	What you approve with a code isn't counted	То, что вы подтверждаете кодом, не учитывается

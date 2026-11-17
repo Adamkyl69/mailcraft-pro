@@ -1823,3 +1823,41 @@ count	occurrences	opakovaní
 	Stop sending and receiving	Zastaviť odosielanie a prijímanie
 	Sending	Odosielanie
 	Receiving	Prijímanie
+# File › Options › Connected apps
+	6-digit code	6-miestny kód
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Odpoveď v konverzácii, do ktorej ste sami písali, z účtu, na ktorý prišla, ľuďom, ktorým ste už písali alebo ktorých máte uložených v kontaktoch, bez príloh a bez ničoho, na čo by vás MailCraft upozornil.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Aplikácie umelej inteligencie v tomto počítači, napríklad Claude Desktop a Claude Code, môžu čítať a usporadúvať vašu poštu v MailCrafte, kým beží. Každá aplikácia dostane vlastný token. Z iného počítača nie je dostupné nič.
+	Allow connected apps	Povoliť pripojené aplikácie
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Aplikácia umelej inteligencie, ktorá dokáže spúšťať príkazy shellu, môže tieto ochrany obísť: príkazy jej shellu držte za jej žiadosťami o povolenie.
+	Approval for sending	Schválenie odosielania
+	Approval is on.	Schvaľovanie je zapnuté.
+	Confirm	Potvrdiť
+	Connected apps	Pripojené aplikácie
+	Copy this token now: it won't be shown again.	Skopírujte si tento token hneď: znova sa už nezobrazí.
+	Expires {when}	Platnosť vyprší {when}
+	For Claude Code:	Pre Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	Pre Claude Desktop v súbore claude_desktop_config.json:
+	Last used {date}	Naposledy použité {date}
+	Made {date}	Vytvorené {date}
+	Make a token first	Najprv vytvorte token
+	Make token	Vytvoriť token
+	Most sends a day without a code	Najviac odoslaní za deň bez kódu
+	Never used	Nikdy nepoužité
+	No tokens yet: make one for each app you connect.	Zatiaľ žiadne tokeny: vytvorte jeden pre každú aplikáciu, ktorú pripájate.
+	Organize	Usporadúvanie
+	QR code for the authenticator app	QR kód pre autentifikačnú aplikáciu
+	Read	Čítanie
+	Reset (a lost phone)	Obnoviť (strata telefónu)
+	Revoke	Odvolať
+	Scan this code with an authenticator app, or type the secret into it:	Naskenujte tento kód autentifikačnou aplikáciou alebo do nej zadajte tajný kľúč:
+	Send replies without a code	Odosielať odpovede bez kódu
+	Sending is locked after 5 wrong codes.	Odosielanie sa po 5 nesprávnych kódoch zamkne.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Odosielanie mimo nižšie uvedených pravidiel vyžaduje 6-miestny kód z autentifikačnej aplikácie vo vašom telefóne.
+	Set up	Nastaviť
+	Set up again	Nastaviť znova
+	The approval's secret isn't here: set it up again.	Tajný kľúč schvaľovania tu chýba: nastavte ho znova.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Nastavenia pripojených aplikácií sa nepodarilo prečítať, takže tu nemožno nič zmeniť.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Toto je prenosná kópia: schvaľovanie sa drží iba v pamäti, preto ho po každom spustení nastavte znova.
+	To {recipients}: {subject}	Komu {recipients}: {subject}
+	Waiting for approval	Čaká na schválenie
+	What you approve with a code isn't counted	To, čo schválite kódom, sa nepočíta

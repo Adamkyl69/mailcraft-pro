@@ -625,6 +625,7 @@ pub(crate) fn backstage_tour(a: &mut MailApp, ctx: &egui::Context) {
     a.act(crate::Action::Backstage(crate::backstage::Page::Options));
     frame(ctx, a, vec![]);
     a.session.prefs = prefs;
+    connected::tour(a, ctx);
     a.ui.backstage = None;
 }
 
@@ -771,6 +772,7 @@ impl crate::Services for Ticking {
 mod access;
 mod accounts;
 mod calendar;
+mod connected;
 mod organize;
 mod pictures;
 mod reading;

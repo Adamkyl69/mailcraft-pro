@@ -1818,3 +1818,41 @@ count	occurrences	keer
 	Stop sending and receiving	Verzenden en ontvangen stoppen
 	Sending	Verzenden
 	Receiving	Ontvangen
+# File › Options › Connected apps
+	6-digit code	Code van 6 cijfers
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Een antwoord in een gesprek waarin je zelf hebt geschreven, vanaf het account waarop het binnenkwam, aan mensen aan wie je eerder hebt geschreven of die je als contact hebt bewaard, zonder bijlagen en zonder iets waarvoor MailCraft zou waarschuwen.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	AI-apps op deze computer, zoals Claude Desktop en Claude Code, kunnen je e-mail in MailCraft lezen en ordenen zolang het draait. Elke app krijgt een eigen token. Vanaf een andere computer is niets bereikbaar.
+	Allow connected apps	Gekoppelde apps toestaan
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Een AI-app die shell-opdrachten kan uitvoeren, kan deze beveiligingen omzeilen: houd de shell-opdrachten van de app achter de vragen om toestemming.
+	Approval for sending	Goedkeuring voor verzenden
+	Approval is on.	Goedkeuring staat aan.
+	Confirm	Bevestigen
+	Connected apps	Gekoppelde apps
+	Copy this token now: it won't be shown again.	Kopieer dit token nu: het wordt niet opnieuw getoond.
+	Expires {when}	Verloopt {when}
+	For Claude Code:	Voor Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	Voor Claude Desktop, in claude_desktop_config.json:
+	Last used {date}	Laatst gebruikt {date}
+	Made {date}	Gemaakt {date}
+	Make a token first	Maak eerst een token
+	Make token	Token maken
+	Most sends a day without a code	Maximaal aantal verzonden berichten per dag zonder code
+	Never used	Nooit gebruikt
+	No tokens yet: make one for each app you connect.	Nog geen tokens: maak er een voor elke app die je koppelt.
+	Organize	Ordenen
+	QR code for the authenticator app	QR-code voor de authenticator-app
+	Read	Lezen
+	Reset (a lost phone)	Resetten (telefoon kwijt)
+	Revoke	Intrekken
+	Scan this code with an authenticator app, or type the secret into it:	Scan deze code met een authenticator-app, of typ daarin het geheim:
+	Send replies without a code	Antwoorden zonder code verzenden
+	Sending is locked after 5 wrong codes.	Verzenden is vergrendeld na 5 foute codes.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Verzenden buiten de regels hieronder vereist een code van 6 cijfers uit een authenticator-app op je telefoon.
+	Set up	Instellen
+	Set up again	Opnieuw instellen
+	The approval's secret isn't here: set it up again.	Het geheim van de goedkeuring is er niet meer: stel het opnieuw in.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	De instellingen voor gekoppelde apps konden niet worden gelezen, dus hier kan niets worden gewijzigd.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Dit is een draagbare kopie: goedkeuring staat alleen in het geheugen, dus stel het na elke start opnieuw in.
+	To {recipients}: {subject}	Aan {recipients}: {subject}
+	Waiting for approval	Wacht op goedkeuring
+	What you approve with a code isn't counted	Wat je met een code goedkeurt, wordt niet meegeteld

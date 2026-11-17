@@ -12,6 +12,9 @@ use crate::*;
 /// Something a pane asks for; run after drawing so panes only borrow what they read.
 pub enum Action {
     Run(&'static str, Value),
+    /// A command only the owner's own click may run (`Session::mcp.owner_ui` is set for that one
+    /// call): the Connected apps card's.
+    RunAsOwner(&'static str, Value),
     /// Close MailCraft though online-only accounts hold unsent mail or changes (issue #4).
     CloseAnyway,
     /// Close, install the downloaded version, and open it.
@@ -264,6 +267,11 @@ impl MailApp {
             Action::UpdateOnClose(install) => self.update_on_close(install),
             // Commands, and what the window does itself.
             Action::Run(id, p) => self.act_run(id, p),
+            Action::RunAsOwner(id, p) => {
+                self.session.mcp.owner_ui = true;
+                self.act_run(id, p);
+                self.session.mcp.owner_ui = false;
+            }
             Action::Submit(id, p) => self.submit(id, p),
             Action::Open(k) => self.run("list.open", json!({"key": k.to_id()})),
             Action::Dialog(d) => self.ui.dialog = Some(d),

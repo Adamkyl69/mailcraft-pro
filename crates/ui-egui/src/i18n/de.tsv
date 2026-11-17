@@ -1823,3 +1823,41 @@ count	occurrences	Terminen
 	Stop sending and receiving	Senden und Empfangen anhalten
 	Sending	Senden
 	Receiving	Empfangen
+# File › Options › Connected apps
+	6-digit code	6-stelliger Code
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Eine Antwort in einer Unterhaltung, an der Sie selbst geschrieben haben, vom Konto, bei dem sie eingegangen ist, an Personen, denen Sie schon geschrieben oder die Sie als Kontakte gespeichert haben, ohne Anhänge und ohne etwas, wovor MailCraft warnen würde.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	KI-Apps auf diesem Computer, etwa Claude Desktop und Claude Code, können Ihre Mails in MailCraft lesen und organisieren, solange es läuft. Jede App erhält ein eigenes Token. Von einem anderen Computer aus ist nichts erreichbar.
+	Allow connected apps	Verbundene Apps zulassen
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Eine KI-App, die Shell-Befehle ausführen kann, kann diese Schutzmaßnahmen umgehen: Halten Sie ihre Shell-Befehle hinter ihren Berechtigungsabfragen.
+	Approval for sending	Freigabe zum Senden
+	Approval is on.	Die Freigabe ist aktiv.
+	Confirm	Bestätigen
+	Connected apps	Verbundene Apps
+	Copy this token now: it won't be shown again.	Kopieren Sie dieses Token jetzt: Es wird nicht noch einmal angezeigt.
+	Expires {when}	Läuft ab {when}
+	For Claude Code:	Für Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	Für Claude Desktop, in claude_desktop_config.json:
+	Last used {date}	Zuletzt verwendet {date}
+	Made {date}	Erstellt {date}
+	Make a token first	Erstellen Sie zuerst ein Token
+	Make token	Token erstellen
+	Most sends a day without a code	Höchstens so viele Sendungen am Tag ohne Code
+	Never used	Nie verwendet
+	No tokens yet: make one for each app you connect.	Noch keine Tokens: Erstellen Sie eines für jede App, die Sie verbinden.
+	Organize	Organisieren
+	QR code for the authenticator app	QR-Code für die Authentifizierungs-App
+	Read	Lesen
+	Reset (a lost phone)	Zurücksetzen (Telefon verloren)
+	Revoke	Widerrufen
+	Scan this code with an authenticator app, or type the secret into it:	Scannen Sie diesen Code mit einer Authentifizierungs-App oder geben Sie dort den geheimen Schlüssel ein:
+	Send replies without a code	Antworten ohne Code senden
+	Sending is locked after 5 wrong codes.	Das Senden ist nach 5 falschen Codes gesperrt.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Senden außerhalb der folgenden Regeln erfordert einen 6-stelligen Code aus einer Authentifizierungs-App auf Ihrem Telefon.
+	Set up	Einrichten
+	Set up again	Erneut einrichten
+	The approval's secret isn't here: set it up again.	Der geheime Schlüssel der Freigabe fehlt: Richten Sie sie erneut ein.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Die Einstellungen für verbundene Apps konnten nicht gelesen werden, daher lässt sich hier nichts ändern.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Dies ist eine portable Kopie: Die Freigabe wird nur im Arbeitsspeicher gehalten, richten Sie sie daher nach jedem Start erneut ein.
+	To {recipients}: {subject}	An {recipients}: {subject}
+	Waiting for approval	Wartet auf Freigabe
+	What you approve with a code isn't counted	Was Sie mit einem Code freigeben, wird nicht mitgezählt

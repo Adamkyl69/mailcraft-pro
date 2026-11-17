@@ -1819,3 +1819,41 @@ count	occurrences	回
 	Stop sending and receiving	送受信を停止
 	Sending	送信
 	Receiving	受信
+# File › Options › Connected apps
+	6-digit code	6桁のコード
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	自分も書き込んだ会話での返信で、受信したアカウントから、これまでにメールを送った相手または連絡先に保存した相手に宛て、添付ファイルがなく、MailCraft が警告する内容もないもの。
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	このコンピューター上の Claude Desktop や Claude Code などの AI アプリは、MailCraft の実行中にメールを読み取り、整理できます。アプリごとに専用のトークンが発行されます。別のコンピューターからは何にもアクセスできません。
+	Allow connected apps	連携アプリを許可する
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	シェルコマンドを実行できる AI アプリは、これらの保護を回避できてしまいます。そのアプリのシェルコマンドは、権限の確認を挟むようにしてください。
+	Approval for sending	送信の承認
+	Approval is on.	承認はオンです。
+	Confirm	確認
+	Connected apps	連携アプリ
+	Copy this token now: it won't be shown again.	このトークンを今すぐコピーしてください。再び表示されることはありません。
+	Expires {when}	{when} に期限切れ
+	For Claude Code:	Claude Code の場合:
+	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop の場合 (claude_desktop_config.json):
+	Last used {date}	最終使用 {date}
+	Made {date}	作成 {date}
+	Make a token first	先にトークンを作成してください
+	Make token	トークンを作成
+	Most sends a day without a code	コードなしで送信できる 1 日の上限
+	Never used	未使用
+	No tokens yet: make one for each app you connect.	トークンはまだありません。接続するアプリごとに 1 つ作成してください。
+	Organize	整理
+	QR code for the authenticator app	認証アプリ用の QR コード
+	Read	読み取り
+	Reset (a lost phone)	リセット (スマートフォンを紛失した場合)
+	Revoke	取り消す
+	Scan this code with an authenticator app, or type the secret into it:	このコードを認証アプリで読み取るか、認証アプリにシークレットを入力してください:
+	Send replies without a code	コードなしで返信を送信する
+	Sending is locked after 5 wrong codes.	誤ったコードを 5 回入力すると、送信はロックされます。
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	以下のルール外での送信には、スマートフォンの認証アプリが表示する 6 桁のコードが必要です。
+	Set up	設定する
+	Set up again	もう一度設定する
+	The approval's secret isn't here: set it up again.	承認のシークレットがありません。もう一度設定してください。
+	The settings for connected apps couldn't be read, so nothing here can be changed.	連携アプリの設定を読み取れなかったため、ここでは何も変更できません。
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	これはポータブル版です。承認はメモリ内にのみ保持されるため、起動するたびにもう一度設定してください。
+	To {recipients}: {subject}	宛先 {recipients}: {subject}
+	Waiting for approval	承認待ち
+	What you approve with a code isn't counted	コードで承認した分は数えません

@@ -1822,3 +1822,41 @@ count	occurrences	ripetizioni
 	Stop sending and receiving	Interrompi invio e ricezione
 	Sending	Invio
 	Receiving	Ricezione
+# File › Options › Connected apps
+	6-digit code	Codice a 6 cifre
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Una risposta in una conversazione in cui hai scritto, dall'account a cui è arrivata, a persone a cui hai già scritto o che hai salvato tra i contatti, senza allegati e senza nulla di cui MailCraft ti avviserebbe.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Le app di IA su questo computer, come Claude Desktop e Claude Code, possono leggere e organizzare la tua posta in MailCraft finché è in esecuzione. Ogni app riceve un token proprio. Niente è raggiungibile da un altro computer.
+	Allow connected apps	Consenti le app connesse
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Un'app di IA che può eseguire comandi di shell può aggirare queste protezioni: tieni i suoi comandi di shell dietro le sue richieste di autorizzazione.
+	Approval for sending	Approvazione per l'invio
+	Approval is on.	L'approvazione è attiva.
+	Confirm	Conferma
+	Connected apps	App connesse
+	Copy this token now: it won't be shown again.	Copia questo token adesso: non verrà mostrato di nuovo.
+	Expires {when}	Scade {when}
+	For Claude Code:	Per Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	Per Claude Desktop, in claude_desktop_config.json:
+	Last used {date}	Ultimo utilizzo {date}
+	Made {date}	Creato {date}
+	Make a token first	Crea prima un token
+	Make token	Crea token
+	Most sends a day without a code	Massimo di invii al giorno senza codice
+	Never used	Mai utilizzato
+	No tokens yet: make one for each app you connect.	Ancora nessun token: creane uno per ogni app che colleghi.
+	Organize	Organizza
+	QR code for the authenticator app	Codice QR per l'app di autenticazione
+	Read	Leggi
+	Reset (a lost phone)	Reimposta (telefono perso)
+	Revoke	Revoca
+	Scan this code with an authenticator app, or type the secret into it:	Inquadra questo codice con un'app di autenticazione, oppure digita al suo interno la chiave segreta:
+	Send replies without a code	Invia le risposte senza codice
+	Sending is locked after 5 wrong codes.	L'invio viene bloccato dopo 5 codici errati.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Inviare fuori dalle regole qui sotto richiede un codice a 6 cifre da un'app di autenticazione sul tuo telefono.
+	Set up	Configura
+	Set up again	Configura di nuovo
+	The approval's secret isn't here: set it up again.	La chiave segreta dell'approvazione non c'è più: configurala di nuovo.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Non è stato possibile leggere le impostazioni delle app connesse, quindi qui non si può modificare nulla.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Questa è una copia portatile: l'approvazione resta solo in memoria, quindi configurala di nuovo a ogni avvio.
+	To {recipients}: {subject}	A {recipients}: {subject}
+	Waiting for approval	In attesa di approvazione
+	What you approve with a code isn't counted	Ciò che approvi con un codice non viene conteggiato

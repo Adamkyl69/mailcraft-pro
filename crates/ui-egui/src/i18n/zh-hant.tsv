@@ -1822,3 +1822,41 @@ count	occurrences	次
 	Stop sending and receiving	停止傳送和接收
 	Sending	傳送
 	Receiving	接收
+# File › Options › Connected apps
+	6-digit code	6 位數驗證碼
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	在你也發過言的對話中，從收到該郵件的帳戶，回覆給你寫過信或已儲存為聯絡人的人，不含附件，也沒有 MailCraft 會提醒的內容。
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	此電腦上的 AI 應用程式（如 Claude Desktop 和 Claude Code）可以在 MailCraft 執行時讀取並整理你的郵件。每個應用程式都有各自的權杖。其他電腦無法存取任何內容。
+	Allow connected apps	允許已連接的應用程式
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	能夠執行 shell 指令的 AI 應用程式可以繞過這些保護：請讓它的 shell 指令維持在其權限提示之後。
+	Approval for sending	傳送核准
+	Approval is on.	核准已開啟。
+	Confirm	確認
+	Connected apps	已連接的應用程式
+	Copy this token now: it won't be shown again.	請立即複製此權杖：它不會再次顯示。
+	Expires {when}	{when} 到期
+	For Claude Code:	適用於 Claude Code：
+	For Claude Desktop, in claude_desktop_config.json:	適用於 Claude Desktop，在 claude_desktop_config.json 中：
+	Last used {date}	上次使用 {date}
+	Made {date}	建立於 {date}
+	Make a token first	請先建立權杖
+	Make token	建立權杖
+	Most sends a day without a code	無需驗證碼每天最多傳送
+	Never used	從未使用
+	No tokens yet: make one for each app you connect.	還沒有權杖：為每個要連接的應用程式建立一個。
+	Organize	整理
+	QR code for the authenticator app	驗證器應用程式的 QR 碼
+	Read	讀取
+	Reset (a lost phone)	重設（手機遺失）
+	Revoke	撤銷
+	Scan this code with an authenticator app, or type the secret into it:	用驗證器應用程式掃描此 QR 碼，或在其中輸入密鑰：
+	Send replies without a code	無需驗證碼傳送回覆
+	Sending is locked after 5 wrong codes.	輸錯 5 次驗證碼後，傳送將被鎖定。
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	在下列規則之外傳送，需要手機上驗證器應用程式提供的 6 位數驗證碼。
+	Set up	設定
+	Set up again	重新設定
+	The approval's secret isn't here: set it up again.	核准的密鑰不在這裡：請重新設定。
+	The settings for connected apps couldn't be read, so nothing here can be changed.	無法讀取已連接應用程式的設定，因此這裡無法變更任何內容。
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	這是可攜式副本：核准只保存在記憶體中，因此每次啟動後都要重新設定。
+	To {recipients}: {subject}	收件者 {recipients}：{subject}
+	Waiting for approval	等待核准
+	What you approve with a code isn't counted	用驗證碼核准的不計入

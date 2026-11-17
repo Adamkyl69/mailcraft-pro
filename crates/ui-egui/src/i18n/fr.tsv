@@ -1823,3 +1823,41 @@ count	occurrences	occurrences
 	Stop sending and receiving	Arrêter l'envoi et la réception
 	Sending	Envoi
 	Receiving	Réception
+# File › Options › Connected apps
+	6-digit code	Code à 6 chiffres
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Une réponse dans une conversation où vous avez écrit, depuis le compte qui l’a reçue, à des personnes à qui vous avez écrit ou que vous avez enregistrées comme contacts, sans pièce jointe et sans rien dont MailCraft vous avertirait.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Les applications d’IA de cet ordinateur, comme Claude Desktop et Claude Code, peuvent lire et organiser votre courrier dans MailCraft tant qu’il est ouvert. Chaque application reçoit son propre jeton. Rien n’est accessible depuis un autre ordinateur.
+	Allow connected apps	Autoriser les applications connectées
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Une application d’IA qui peut exécuter des commandes shell peut contourner ces protections : gardez ses commandes shell derrière ses demandes d’autorisation.
+	Approval for sending	Approbation de l’envoi
+	Approval is on.	L’approbation est activée.
+	Confirm	Confirmer
+	Connected apps	Applications connectées
+	Copy this token now: it won't be shown again.	Copiez ce jeton maintenant : il ne sera plus affiché.
+	Expires {when}	Expire {when}
+	For Claude Code:	Pour Claude Code :
+	For Claude Desktop, in claude_desktop_config.json:	Pour Claude Desktop, dans claude_desktop_config.json :
+	Last used {date}	Dernière utilisation {date}
+	Made {date}	Créé {date}
+	Make a token first	Créez d’abord un jeton
+	Make token	Créer un jeton
+	Most sends a day without a code	Nombre maximal d’envois par jour sans code
+	Never used	Jamais utilisé
+	No tokens yet: make one for each app you connect.	Aucun jeton pour l’instant : créez-en un pour chaque application que vous connectez.
+	Organize	Organiser
+	QR code for the authenticator app	Code QR pour l’application d’authentification
+	Read	Lire
+	Reset (a lost phone)	Réinitialiser (téléphone perdu)
+	Revoke	Révoquer
+	Scan this code with an authenticator app, or type the secret into it:	Scannez ce code avec une application d’authentification, ou saisissez-y la clé secrète :
+	Send replies without a code	Envoyer les réponses sans code
+	Sending is locked after 5 wrong codes.	L’envoi est verrouillé après 5 codes erronés.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	Envoyer en dehors des règles ci-dessous demande un code à 6 chiffres issu d’une application d’authentification sur votre téléphone.
+	Set up	Configurer
+	Set up again	Configurer à nouveau
+	The approval's secret isn't here: set it up again.	La clé secrète de l’approbation n’est plus là : configurez-la à nouveau.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	Les réglages des applications connectées n’ont pas pu être lus : rien ne peut être modifié ici.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	Ceci est une copie portable : l’approbation reste en mémoire seulement, configurez-la donc à nouveau après chaque démarrage.
+	To {recipients}: {subject}	À {recipients} : {subject}
+	Waiting for approval	En attente d’approbation
+	What you approve with a code isn't counted	Ce que vous approuvez avec un code n’est pas compté

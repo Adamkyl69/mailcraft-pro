@@ -1818,3 +1818,41 @@ count	occurrences	פעמים
 	Stop sending and receiving	עצור שליחה וקבלה
 	Sending	שליחה
 	Receiving	קבלה
+# File › Options › Connected apps
+	6-digit code	קוד בן 6 ספרות
+	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	תשובה בשיחה שגם כתבת בה, מהחשבון שאליו הגיעה ההודעה, לאנשים שכבר כתבת להם או ששמרת כאנשי קשר, בלי קבצים מצורפים ובלי דבר ש-MailCraft היה מזהיר ממנו.
+	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	אפליקציות בינה מלאכותית במחשב הזה, כמו Claude Desktop ו-Claude Code, יכולות לקרוא ולארגן את הדואר שלך ב-MailCraft כל עוד הוא פועל. כל אפליקציה מקבלת אסימון משלה. אין גישה לשום דבר ממחשב אחר.
+	Allow connected apps	אפשר אפליקציות מחוברות
+	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	אפליקציית בינה מלאכותית שיכולה להריץ פקודות מעטפת (shell) יכולה לעקוף את ההגנות האלה: השאר את פקודות המעטפת שלה מאחורי בקשות ההרשאה שלה.
+	Approval for sending	אישור לשליחה
+	Approval is on.	האישור פעיל.
+	Confirm	אישור
+	Connected apps	אפליקציות מחוברות
+	Copy this token now: it won't be shown again.	העתק את האסימון עכשיו: הוא לא יוצג שוב.
+	Expires {when}	פג תוקף {when}
+	For Claude Code:	עבור Claude Code:
+	For Claude Desktop, in claude_desktop_config.json:	עבור Claude Desktop, בקובץ claude_desktop_config.json:
+	Last used {date}	שימוש אחרון {date}
+	Made {date}	נוצר {date}
+	Make a token first	צור קודם אסימון
+	Make token	צור אסימון
+	Most sends a day without a code	מספר שליחות מרבי ביום בלי קוד
+	Never used	לא נעשה בו שימוש מעולם
+	No tokens yet: make one for each app you connect.	אין עדיין אסימונים: צור אחד לכל אפליקציה שאתה מחבר.
+	Organize	ארגון
+	QR code for the authenticator app	קוד QR לאפליקציית האימות
+	Read	קריאה
+	Reset (a lost phone)	איפוס (טלפון אבוד)
+	Revoke	בטל
+	Scan this code with an authenticator app, or type the secret into it:	סרוק את הקוד באפליקציית אימות, או הקלד בה את הסוד:
+	Send replies without a code	שלח תשובות בלי קוד
+	Sending is locked after 5 wrong codes.	השליחה ננעלת אחרי 5 קודים שגויים.
+	Sending outside the rules below needs a 6-digit code from an authenticator app on your phone.	שליחה מחוץ לכללים שלהלן מחייבת קוד בן 6 ספרות מאפליקציית אימות בטלפון שלך.
+	Set up	הגדר
+	Set up again	הגדר מחדש
+	The approval's secret isn't here: set it up again.	הסוד של האישור לא נמצא כאן: הגדר אותו מחדש.
+	The settings for connected apps couldn't be read, so nothing here can be changed.	לא ניתן היה לקרוא את ההגדרות של האפליקציות המחוברות, ולכן אי אפשר לשנות כאן דבר.
+	This is a portable copy: approval is kept in memory only, so set it up again after each start.	זהו עותק נייד: האישור נשמר בזיכרון בלבד, ולכן יש להגדיר אותו מחדש אחרי כל הפעלה.
+	To {recipients}: {subject}	אל {recipients}: {subject}
+	Waiting for approval	ממתין לאישור
+	What you approve with a code isn't counted	מה שאתה מאשר בקוד אינו נספר

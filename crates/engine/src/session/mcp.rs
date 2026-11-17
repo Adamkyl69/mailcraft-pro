@@ -284,6 +284,14 @@ impl Session {
         }
     }
 
+    /// Whether `token_id` still has a token, with MCP on, that may use `tool`.
+    fn mcp_still_allowed(&self, token_id: &str, tool: &str) -> bool {
+        let Some(permission) = tools::find(tool).map(|t| t.permission) else { return false };
+        self.mcp.settings.enabled
+            && !self.mcp.unread
+            && self.mcp.settings.tokens.iter().any(|t| t.id == token_id && t.permissions.contains(&permission))
+    }
+
     /// The record that `token` is: every record's hash is compared, none stops the others.
     fn mcp_token_at(&self, token: &str) -> Option<usize> {
         let settings = &self.mcp.settings;
@@ -386,6 +394,15 @@ impl Session {
         let waiting = std::mem::take(&mut self.mcp.waiting);
         let mut done = Vec::new();
         for d in waiting {
+            if !self.mcp_still_allowed(&d.token_id, d.tool) {
+                // Revoked, switched off or narrowed while it waited: no mail data goes out (a send
+                // that already went can't be undone, but its details aren't told).
+                self.mcp.busy.remove(&d.token_id);
+                log::info!(target: "mailcraft::mcp", "{} refused after {} ms: the token is no longer accepted", d.tool, now_ms.saturating_sub(d.started_ms).max(0));
+                let why = "this token isn't accepted: MCP is off in MailCraft, or the token was revoked";
+                done.push((d.ticket, protocol::error(Some(&d.id), protocol::TOKEN_REFUSED, why)));
+                continue;
+            }
             match self.mcp_poll(&d, now_ms) {
                 None => self.mcp.waiting.push(d),
                 Some(result) => {

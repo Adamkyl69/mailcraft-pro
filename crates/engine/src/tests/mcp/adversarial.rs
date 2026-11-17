@@ -154,9 +154,14 @@ fn a_token_revoked_with_a_send_held_cant_release_it_and_nor_can_another_token() 
 /// A call waiting for a message's source when its token is revoked: the answer must not be handed
 /// to an app that no longer has a token.
 #[test]
-#[ignore = "BUG: mcp_finished answers a deferred call for a token revoked while it waited (session/mcp.rs mcp_finished/mcp_poll don't look at the token again)"]
 fn a_call_waiting_when_its_token_is_revoked_isnt_answered_with_mail() {
-    let mut s = big_projects(&temp("mcp-adv-revoke-wait"), 3);
+    for how in ["revoke", "off", "narrow"] {
+        a_waiting_call_loses_its_token(how);
+    }
+}
+
+fn a_waiting_call_loses_its_token(how: &str) {
+    let mut s = big_projects(&temp(&format!("mcp-adv-revoke-wait-{how}")), 3);
     let t = token();
     s.mcp_seed_token(&t, &ALL);
     s.mcp.owner_ui = true;
@@ -164,13 +169,24 @@ fn a_call_waiting_when_its_token_is_revoked_isnt_answered_with_mail() {
     let ask = request(1, "tools/call", json!({"name": "mail_read", "arguments": {"key": key.to_id()}}));
     assert!(matches!(s.mcp_handle(&t, &ask, 10_000), McpOutcome::Later(_)));
     let id = s.mcp.settings.tokens[0].id.clone();
-    s.run("mcp.revokeToken", &json!({"id": id})).unwrap();
+    match how {
+        "revoke" => s.run("mcp.revokeToken", &json!({"id": id})).unwrap(),
+        "off" => s.run("mcp.setEnabled", &json!({"on": false})).unwrap(),
+        _ => {
+            s.mcp.settings.tokens[0].permissions.clear();
+            json!({})
+        }
+    };
     let raw = raw_of_report(&key);
     s.store.as_ref().unwrap().write_bodies(vec![(key.clone(), raw.clone())]).unwrap();
     s.apply(Event::Body { key, raw });
-    for (_, line) in s.mcp_finished(11_000) {
+    let done = s.mcp_finished(11_000);
+    assert_eq!(done.len(), 1, "{how}");
+    for (_, line) in done {
         assert!(!line.contains("The figures"), "{line}");
+        assert!(line.contains("-32001"), "{how}: {line}");
     }
+    assert!(!s.mcp_waiting());
 }
 
 fn raw_of_report(key: &MessageKey) -> Vec<u8> {

@@ -64,6 +64,32 @@ cd apps/mailcraft-web && trunk serve           # browser: http://127.0.0.1:8774/
 - MailCraft keeps its data in `%APPDATA%\MailCraft` (Windows), `~/Library/Application Support/MailCraft` (macOS) or `~/.local/share/mailcraft` (Linux). To use another folder, pass `--data DIR` or set `MAILCRAFT_DATA`.
 - To put the web build on your own site, see [hosting the web build](packaging/web/README.md).
 
+## Use MailCraft from an AI app
+
+MailCraft can answer AI apps on your computer, such as Claude Desktop and Claude Code, through a local [MCP](https://modelcontextprotocol.io) server. It works only while MailCraft is running, and nothing is reachable from another computer: the app starts `mailcraft-cli mcp`, which passes each request to the running MailCraft over its private local socket. It isn't offered in the browser build.
+
+1. In MailCraft, open **File › Options › Connected apps** and make a token for the app, with the permissions it needs.
+2. Copy the token (it's shown once) and paste the snippet beside it into Claude Desktop's `claude_desktop_config.json`, or run the `claude mcp add` line. Both set `MAILCRAFT_MCP_TOKEN` for the bridge.
+3. Turn on **Allow connected apps**. Revoke a token from the same card at any time.
+
+A token has up to three permissions. **Read** is always on; **Organize** adds the commands below that change mail, and **Send** adds `mail_send`.
+
+| Tool | Permission | What it does |
+|---|---|---|
+| `mail_accounts` | Read | Accounts, folders and counts |
+| `mail_list` | Read | Messages in a folder |
+| `mail_search` | Read | Search all mail, as the search box does |
+| `mail_read` | Read | A message's text, without marking it read or loading pictures |
+| `mail_commands` | Read | The commands `mail_run` accepts |
+| `monitor_log` | Read | MailCraft's warnings and errors from this run |
+| `mail_sync` | Organize | Fetch new mail now |
+| `mail_run` | Organize | Mark read or unread, flag, categorize, pin, move (not to Trash or Junk), snooze; each can be undone |
+| `mail_send` | Send | Send a new message or a reply |
+
+**Sending.** A reply to people you've written to, in a conversation you've written in, with no attachments, goes at once, within a daily limit; you can turn this off or change the limit in the card. Anything else is held. The app asks you for a 6-digit code from an authenticator app (set up in the card by scanning a QR code), or you send or discard the held message in the card. Five wrong codes lock sending until you press **Unlock**; **Reset** sets the authenticator up again after a lost phone.
+
+**What this protects against.** The protection is for an AI being tricked by the mail it reads: it can only do what its token allows, and it can't send outside the rules without a code you hold. An AI app that can run shell commands as you can get around any protection on your own computer, since it can read MailCraft's files as you can. Prefer an app without a shell, or keep its shell commands behind its permission prompts.
+
 ## Documentation
 
 - [Setting up your email account](https://mailcraft.dev/setup)

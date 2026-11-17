@@ -69,6 +69,8 @@ and `cargo xtask sizes` enforces them.
 |---|---|
 | `engine/src/session.rs` + `session/` | `Session`'s state, with its `impl` continued per area (`opening`, `changing`, `writing`, `searching`, `accounts`, `organize/`…) |
 | `engine/src/cmd.rs` + `cmd/` | The command registry; each area returns its own commands |
+| `engine/src/mcp.rs` + `mcp/` | The pure part of the MCP server (no `Session`): JSON-RPC parsing, tokens, the tool table, authenticator codes, the rules for sending without a code |
+| `engine/src/session/mcp.rs` + `mcp/` | The part that acts on the `Session`: token and rate checks, the tools, held sends |
 | `ui-egui/src/app.rs` + `app/` | `MailApp`, the window |
 | `ui-egui/src/panes/`, `dialogs/`, `reading/`, `rich_edit/`, `look/` | Panes; dialogs; the reading pane and compose; the editor; theme and icons |
 | `net/src/protocols/`, `exchange/`, `data_files/`, `fakes/`, `worker/` | Protocols; Graph, EWS and NTLM; `.pst` files; test servers; the worker pool |
@@ -115,6 +117,16 @@ How it works:
 - **Tasks** live in each account's `pim.json`, on this computer only.
 - **Sending:** `Session::send_block` says why an account can't send. `Session::deliver`, which
   every way of sending goes through, refuses to send from such an account.
+
+## Connected apps (MCP)
+
+Local AI apps reach a running MailCraft as an MCP server. The pieces, from the app outward:
+
+- **The bridge** (`apps/mailcraft-cli/src/commands/mcp.rs`): `mailcraft-cli mcp` reads JSON-RPC lines on standard input and relays each, on a connection of its own, to the running app's single-instance socket. It runs before the store is opened, since the app holds it, and holds only the token (`MAILCRAFT_MCP_TOKEN`).
+- **The socket** (`net/src/instance.rs`, `apps/mailcraft/src/startup/single_instance/`): the same private socket that hands a second launch to the first. A request of the MCP kind goes to a thread of its own, which queues it for the window (`single_instance/mcp.rs`). The window thread runs it on the `Session` each frame and replies without blocking; a call that waits for the network, such as a sync or a send, is kept until its event arrives.
+- **The engine** keeps the protocol, the tokens and the sending rules in the pure `engine::mcp`, and everything that touches the `Session` in `session/mcp/`. They are split so that `session` depends on `mcp` and never the other way, which keeps the crate's top-level modules free of a new cycle. The session is the only place a request becomes work, so a tool runs the same commands as the ribbon and the CLI. `mail_run` runs only an allowlist of commands that are easy to undo, and the `mcp.*` commands that manage tokens and approval run only from the Options card (`Session::mcp.owner_ui`).
+- **Settings** are in `mcp.json` in the data folder: tokens are kept as SHA-256 hashes, never as the token. The authenticator's secret is not in that file: it goes through the `Credentials` trait as an app secret (`Job::KeepAppSecret`), so it lives in the system keychain, and in memory only for a portable copy.
+- **The card** is `ui-egui/src/panes/backstage/options/connected.rs`. It isn't drawn for a JMAP-only session, which is the browser's, where there is no socket.
 
 ## Storage
 

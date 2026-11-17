@@ -58,6 +58,12 @@ thiserror = { workspace = true }
 ipconfig = "0.3"
 # The certificates Windows distrusts (`Disallowed`), refused even when among the roots.
 schannel = "0.1"
+# The single-instance socket (`instance.rs`): Unix sockets on Windows, which std lacks.
+# The version zbus brings, so it's built once.
+uds_windows = "1.2"
+# The Windows session the single-instance socket is named by (the process token's session id):
+# safe wrappers over Win32, only the `advapi` feature (as PdfCraft has it).
+winsafe = { version = "0.0.29", default-features = false, features = ["advapi"] }
 
 [dev-dependencies]
 # The data file tests read Outlook's RTF bodies from the one copy the MIME tests keep.

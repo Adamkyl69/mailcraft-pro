@@ -1,9 +1,10 @@
 use super::*;
+use mailcraft_net::instance::READ_SLICE;
 
 /// Where a test's socket goes, in a folder of its own, its name kept short: a socket's whole
 /// path must fit its address (103 bytes on macOS, whose temporary folder alone takes about 50).
 fn socket_at(test: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("mci-{:x}-{test}", std::process::id())).join(socket_name(Path::new("C:/data"), ""))
+    std::env::temp_dir().join(format!("mci-{:x}-{test}", std::process::id())).join(mailcraft_net::instance::socket_name(Path::new("C:/data"), ""))
 }
 
 /// That socket's folder, emptied.
@@ -20,7 +21,7 @@ fn socket(test: &str) -> PathBuf {
 /// of its own: the tests' did on the macOS CI runner, with a five-digit process id.
 #[test]
 fn socket_paths_fit_a_socket_address() {
-    let app = socket_path(Path::new("/home/zoe/.local/share/mailcraft"));
+    let app = mailcraft_net::instance::socket_path(Path::new("/home/zoe/.local/share/mailcraft"));
     assert_eq!(app.is_some(), mailcraft_engine::store::scratch_dir("instance").is_some(), "a socket wherever its folder can be");
     let app = app.unwrap_or_default();
     for p in [
@@ -38,54 +39,6 @@ fn socket_paths_fit_a_socket_address() {
         let len = p.as_os_str().len();
         assert!(len < 104, "{len} bytes: {}", p.display());
     }
-}
-
-/// Windows names the screen by the session the process runs in, `SESSIONNAME` only when the
-/// id can't be read.
-#[test]
-fn each_windows_session_has_its_own_socket() {
-    let name = |id, n| socket_name(Path::new(r"C:\d"), &windows_session(id, n));
-    // A launch without SESSIONNAME (Task Scheduler) in the console's session finds the
-    // window opened from Explorer there...
-    assert_eq!(name(Some(1), None), name(Some(1), Some("Console")));
-    // ...and one in a Remote Desktop session never reaches the console's.
-    assert_ne!(name(Some(2), None), name(Some(1), Some("Console")));
-    assert_ne!(name(Some(2), Some("RDP-Tcp#3")), name(Some(3), Some("RDP-Tcp#3")));
-    // Only without an id does SESSIONNAME name it.
-    assert_eq!(name(None, Some("Console")), socket_name(Path::new(r"C:\d"), "Console"));
-    assert_ne!(name(None, Some("RDP-Tcp#3")), name(None, Some("RDP-Tcp#4")));
-    assert_eq!(name(None, None), socket_name(Path::new(r"C:\d"), ""));
-}
-
-/// The socket is named by the session this process runs in, which Windows always gives.
-#[cfg(windows)]
-#[test]
-fn this_process_has_a_session_id() {
-    let id = session_id();
-    assert!(id.is_some(), "the access token names the session");
-    assert!(screen().starts_with('s'));
-}
-
-/// One data folder, one name; another folder (`--data`, `--sample`, a portable copy) or
-/// another screen, another name; never a path.
-#[test]
-fn each_data_folder_and_screen_has_its_own_socket() {
-    let a = socket_name(Path::new("/home/zoe/.local/share/mailcraft"), "wayland-0");
-    assert_eq!(a, socket_name(Path::new("/home/zoe/.local/share/mailcraft/"), "wayland-0"));
-    assert_ne!(a, socket_name(Path::new("/home/zoe/.local/share/mailcraft/sample"), "wayland-0"));
-    assert_ne!(a, socket_name(Path::new("/media/usb/MailCraftData"), "wayland-0"));
-    assert_ne!(a, socket_name(Path::new("/home/zoe/.local/share/mailcraft"), "wayland-1"));
-    assert_ne!(socket_name(Path::new("/d"), "RDP-Tcp#3"), socket_name(Path::new("/d"), "Console"));
-    for odd in ["../../x/y", "RDP-Tcp#3", &"z".repeat(200), ""] {
-        let n = socket_name(Path::new("/d"), odd);
-        assert!(n.ends_with(".sock") && n.matches('.').count() == 1 && !n.contains(['/', '\\', '#']), "{n}");
-        assert!(n.len() <= 16 + 1 + 24 + 5, "{n}");
-    }
-    #[cfg(windows)]
-    assert_eq!(
-        socket_name(Path::new(r"C:\Users\Zoe\AppData\Roaming\MailCraft"), ""),
-        socket_name(Path::new(r"c:\users\zoe\appdata\roaming\mailcraft"), "")
-    );
 }
 
 /// The first launch listens; a second asks it to show its window and exits, and the first

@@ -4133,7 +4133,9 @@ dependencies = [
  "serde_json",
  "sspi",
  "thiserror 2.0.21",
+ "uds_windows",
  "webpki-roots",
+ "winsafe",
 ]
 
 [[package]]

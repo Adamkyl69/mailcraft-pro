@@ -32,10 +32,12 @@ use std::time::Duration;
 
 use super::args::{Handed, MAX_ATTACHED};
 
+use mailcraft_net::instance::{Patient, TIMEOUT, UnixStream, read_key, socket_path};
+
 #[cfg(unix)]
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixListener;
 #[cfg(windows)]
-use uds_windows::{UnixListener, UnixStream};
+use uds_windows::UnixListener;
 
 /// What the running MailCraft answers.
 const OK: &str = "ok\n";
@@ -47,10 +49,6 @@ const MAX_OPEN: usize = 64;
 const MAX_WAITING: usize = 256;
 /// Most launches' files to send waiting for the window (a new message each).
 const MAX_WAITING_SENDS: usize = 16;
-/// Longest key file read.
-const MAX_KEY: u64 = 256;
-/// How long either side waits for the other.
-const TIMEOUT: Duration = Duration::from_secs(5);
 /// How often a launch asks again when the running MailCraft's key isn't in place, and how long
 /// it waits before each.
 const KEY_TRIES: usize = 5;
@@ -246,76 +244,6 @@ fn owner_only_file(path: &Path) -> std::io::Result<std::fs::File> {
     how.open(path)
 }
 
-/// The running MailCraft's key, from beside its socket.
-fn read_key(socket: &Path) -> std::io::Result<String> {
-    use std::io::Read;
-    let mut key = String::new();
-    std::fs::File::open(socket.with_extension("key"))?.take(MAX_KEY).read_to_string(&mut key)?;
-    Ok(key.trim().to_string())
-}
-
-/// The socket for `data` in this user's private scratch folder.
-fn socket_path(data: &Path) -> Option<PathBuf> {
-    let dir = mailcraft_engine::store::scratch_dir("instance")?;
-    Some(dir.join(socket_name(data, &screen())))
-}
-
-/// The Windows session, or the display on Linux and the BSDs (`WAYLAND_DISPLAY`, else
-/// `DISPLAY`): a launch reaches only a window on its own screen.
-fn screen() -> String {
-    let var = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
-    if cfg!(windows) {
-        windows_session(session_id(), var("SESSIONNAME").as_deref())
-    } else if cfg!(target_os = "macos") {
-        String::new()
-    } else {
-        var("WAYLAND_DISPLAY").or_else(|| var("DISPLAY")).unwrap_or_default()
-    }
-}
-
-/// The Windows session this process runs in, from its access token: the console, each Remote
-/// Desktop sign-in and session 0 (services) each have their own. `None` if Windows won't say.
-#[cfg(windows)]
-fn session_id() -> Option<u32> {
-    use winsafe::{HACCESSTOKEN, TokenInfo, co::TOKEN_INFORMATION_CLASS};
-    match HACCESSTOKEN::GetCurrentProcessToken().GetTokenInformation(TOKEN_INFORMATION_CLASS::SessionId) {
-        Ok(TokenInfo::SessionId(id)) => Some(*id),
-        _ => None,
-    }
-}
-
-#[cfg(not(windows))]
-fn session_id() -> Option<u32> {
-    None
-}
-
-/// The Windows session as the socket names it: its id (`session`). A launch from Task Scheduler,
-/// a service or a remote shell has no `SESSIONNAME` but still runs in a session, so it finds that
-/// session's window instead of opening a second MailCraft on the same data; and a window in
-/// another session (the same user at the console and over Remote Desktop) is never reached. Only
-/// when the id can't be read does `SESSIONNAME` (`Console`, `RDP-Tcp#3`…) name it (as PdfCraft's
-/// single instance).
-fn windows_session(session: Option<u32>, session_name: Option<&str>) -> String {
-    match session {
-        Some(id) => format!("s{id}"),
-        None => session_name.unwrap_or_default().to_string(),
-    }
-}
-
-/// The socket's file name: the data folder's hash (its path, case folded on Windows and macOS,
-/// whose file systems mostly are) and the screen, letters, digits, `-` and `_` only.
-fn socket_name(data: &Path, screen: &str) -> String {
-    let data = std::path::absolute(data).unwrap_or_else(|_| data.to_path_buf());
-    let mut key = data.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
-    if cfg!(any(windows, target_os = "macos")) {
-        key = key.to_lowercase();
-    }
-    let screen: String = screen.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_')).collect();
-    let screen: String = screen.get(screen.len().saturating_sub(24)..).unwrap_or_default().to_string();
-    let hash = mailcraft_engine::store::fnv64(&key);
-    if screen.is_empty() { format!("{hash:016x}.sock") } else { format!("{hash:016x}-{screen}.sock") }
-}
-
 /// Held while a launch finds out whether it's the first, so launches started together take
 /// turns: the first listens before the next looks. Released by the system however the process
 /// ends. Best effort: without it the launch goes on.
@@ -409,55 +337,6 @@ fn hand_over(stream: UnixStream, socket: &Path, handed: &Handed, mut wait: impl 
         }
     }
     hand_over_once(&stream, socket, handed)
-}
-
-/// How long one read on the socket waits before it's made again, until [`TIMEOUT`]. Windows can
-/// miss waking a read for a close that comes just as the read starts (about one in four hundred),
-/// as a launch that asks again closes a connection it sent nothing on; data always wakes it. The
-/// read then waited out all of [`TIMEOUT`], and the ask behind it timed out and opened a second
-/// window. A read made again sees the close at once.
-const READ_SLICE: Duration = Duration::from_millis(50);
-
-/// Reads `stream` until `TIMEOUT` from when it's made, [`READ_SLICE`] at a time.
-struct Patient<'a> {
-    stream: &'a UnixStream,
-    until: std::time::Instant,
-}
-
-impl<'a> Patient<'a> {
-    fn new(stream: &'a UnixStream) -> Self {
-        Patient { stream, until: std::time::Instant::now() + TIMEOUT }
-    }
-
-    /// What can be read without waiting: never a wait with no timeout set.
-    fn read_now(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.stream.set_nonblocking(true)?;
-        let read = std::io::Read::read(&mut self.stream, buf);
-        self.stream.set_nonblocking(false)?;
-        read
-    }
-}
-
-impl std::io::Read for Patient<'_> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        use std::io::ErrorKind::{Interrupted, TimedOut, WouldBlock};
-        loop {
-            let left = self.until.saturating_duration_since(std::time::Instant::now());
-            if left.is_zero() {
-                return Err(TimedOut.into());
-            }
-            // A timeout of zero is refused: at least a millisecond.
-            if let Err(refused) = self.stream.set_read_timeout(Some(left.min(READ_SLICE).max(Duration::from_millis(1)))) {
-                // macOS refuses a timeout on a socket whose other end has closed ("invalid
-                // argument"): what's there is read without waiting, the close as the end it is.
-                return self.read_now(buf).map_err(|_| refused);
-            }
-            match std::io::Read::read(&mut self.stream, buf) {
-                Err(e) if matches!(e.kind(), TimedOut | WouldBlock | Interrupted) => {}
-                read => return read,
-            }
-        }
-    }
 }
 
 /// Ask once, with the key beside the socket, and wait for the `ok`.

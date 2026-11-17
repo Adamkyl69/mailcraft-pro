@@ -2002,6 +2002,7 @@ version = "0.41.0"
 dependencies = [
  "aes-gcm",
  "flate2",
+ "hmac 0.13.0",
  "log",
  "mailcraft-mime",
  "mailcraft-model",
@@ -2012,6 +2013,7 @@ dependencies = [
  "pbkdf2 0.13.0",
  "serde",
  "serde_json",
+ "sha1 0.11.0",
  "sha2 0.11.1",
  "thiserror",
 ]

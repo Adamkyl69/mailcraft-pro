@@ -4,7 +4,9 @@ use std::collections::BTreeSet;
 
 use serde_json::{Value, json};
 
+use super::approval::{self, ApprovalRecord, ApprovalState, Verdict};
 use super::protocol::{self, Id, Parsed};
+use super::rules::{self, RuleFacts, RuleMiss};
 use super::tokens::{self, RateWindow};
 use super::tools::{self, Args, RUNNABLE, TOOLS};
 use super::{MAX_DEPTH, PROTOCOL_VERSIONS, Permission};
@@ -223,4 +225,209 @@ fn an_unknown_argument_or_arguments_that_arent_an_object_are_refused() {
     assert!(e.len() < 100, "{e}");
     // A float that's far too large is no integer.
     assert!(Args::new(&json!({"limit": 1e300}), &["limit"]).unwrap().int("limit", 1, 200).is_err());
+}
+
+/// RFC 6238 Appendix B's SHA-1 secret.
+const RFC_SECRET: &[u8] = b"12345678901234567890";
+
+#[test]
+fn the_codes_of_rfc_4226_appendix_d() {
+    let expected = [755_224, 287_082, 359_152, 969_429, 338_314, 254_676, 287_922, 162_583, 399_871, 520_489];
+    for (counter, code) in expected.iter().enumerate() {
+        assert_eq!(approval::hotp(RFC_SECRET, counter as u64), *code, "{counter}");
+    }
+}
+
+#[test]
+fn the_codes_of_rfc_6238_appendix_b_sha1() {
+    // The RFC's eight digits, of which six are used: the last six.
+    for (time, eight) in [
+        (59, "94287082"),
+        (1_111_111_109, "07081804"),
+        (1_111_111_111, "14050471"),
+        (1_234_567_890, "89005924"),
+        (2_000_000_000, "69279037"),
+        (20_000_000_000i64, "65353130"),
+    ] {
+        let want: u32 = eight[2..].parse().unwrap();
+        assert_eq!(approval::code_at(RFC_SECRET, approval::step(time)), Some(want), "{time}");
+    }
+    assert_eq!(approval::step(59), 1);
+    assert_eq!(approval::step(60), 2);
+    assert_eq!(approval::step(-1), -1);
+    assert_eq!(approval::code_at(RFC_SECRET, -1), None);
+}
+
+fn active() -> ApprovalRecord {
+    ApprovalRecord { state: ApprovalState::Active, ..Default::default() }
+}
+
+fn code(time: i64) -> u32 {
+    approval::code_at(RFC_SECRET, approval::step(time)).unwrap()
+}
+
+#[test]
+fn a_code_is_taken_a_step_either_side_and_not_two() {
+    let now = 1_111_111_111;
+    for offset in [-30, 0, 30] {
+        let mut rec = active();
+        let verdict = approval::check(&mut rec, RFC_SECRET, code(now + offset), now);
+        assert_eq!(verdict, Verdict::Ok { step: approval::step(now + offset) }, "{offset}");
+        assert_eq!((rec.failures, rec.locked), (0, false));
+    }
+    for offset in [-60, 60, -3600] {
+        let mut rec = active();
+        assert_eq!(approval::check(&mut rec, RFC_SECRET, code(now + offset), now), Verdict::Wrong, "{offset}");
+        assert_eq!(rec.failures, 1);
+    }
+}
+
+#[test]
+fn a_step_that_was_used_is_never_taken_again_even_after_a_restart() {
+    let now = 1_234_567_890;
+    let mut rec = active();
+    let c = code(now);
+    assert!(matches!(approval::check(&mut rec, RFC_SECRET, c, now), Verdict::Ok { .. }));
+    assert_eq!(approval::check(&mut rec, RFC_SECRET, c, now), Verdict::Replayed);
+    assert_eq!(approval::check(&mut rec, RFC_SECRET, c, now + 29), Verdict::Replayed);
+    // What's kept in mcp.json carries the step: a restart doesn't give the code back.
+    let kept: ApprovalRecord = serde_json::from_str(&serde_json::to_string(&rec).unwrap()).unwrap();
+    let mut again = ApprovalRecord { failures: 0, ..kept };
+    assert_eq!(approval::check(&mut again, RFC_SECRET, c, now), Verdict::Replayed);
+    // The code before it, the step earlier, is also behind `last_step`.
+    assert_eq!(approval::check(&mut again, RFC_SECRET, code(now - 30), now), Verdict::Replayed);
+    // The next step's code is still good.
+    assert!(matches!(approval::check(&mut again, RFC_SECRET, code(now + 30), now), Verdict::Ok { .. }));
+}
+
+#[test]
+fn a_code_starting_with_zeros_is_compared_as_six_digits() {
+    // 005924 at 1234567890.
+    let mut rec = active();
+    assert!(matches!(approval::check(&mut rec, RFC_SECRET, 5924, 1_234_567_890), Verdict::Ok { .. }));
+    assert_eq!(approval::parse_code("005924"), Some(5924));
+}
+
+#[test]
+fn five_wrong_codes_lock_and_a_locked_record_never_looks() {
+    let now = 1_111_111_111;
+    let mut rec = active();
+    for n in 1..=5 {
+        assert_eq!(approval::check(&mut rec, RFC_SECRET, 1, now), Verdict::Wrong, "{n}");
+        assert_eq!(rec.locked, n == 5);
+    }
+    // A right code is refused while locked, and doesn't count.
+    assert_eq!(approval::check(&mut rec, RFC_SECRET, code(now), now), Verdict::Locked);
+    assert_eq!(rec.failures, 5);
+    rec.locked = false;
+    rec.failures = 0;
+    assert!(matches!(approval::check(&mut rec, RFC_SECRET, code(now), now), Verdict::Ok { .. }));
+}
+
+#[test]
+fn a_right_code_clears_the_wrong_ones_before_it() {
+    let now = 1_111_111_111;
+    let mut rec = active();
+    for _ in 0..4 {
+        approval::check(&mut rec, RFC_SECRET, 2, now);
+    }
+    assert!(matches!(approval::check(&mut rec, RFC_SECRET, code(now), now), Verdict::Ok { .. }));
+    assert_eq!(rec.failures, 0);
+}
+
+#[test]
+fn approval_that_isnt_set_up_takes_no_code() {
+    let mut rec = ApprovalRecord::default();
+    assert_eq!(approval::check(&mut rec, RFC_SECRET, code(59), 59), Verdict::NotSetUp);
+    assert_eq!(rec.failures, 0);
+}
+
+#[test]
+fn base32_is_rfc_4648s() {
+    for (plain, coded) in
+        [("", ""), ("f", "MY"), ("fo", "MZXQ"), ("foo", "MZXW6"), ("foob", "MZXW6YQ"), ("fooba", "MZXW6YTB"), ("foobar", "MZXW6YTBOI")]
+    {
+        assert_eq!(approval::base32(plain.as_bytes()), coded);
+        assert_eq!(approval::unbase32(coded).as_deref(), Some(plain.as_bytes()), "{coded}");
+        assert_eq!(approval::unbase32(&coded.to_lowercase()).as_deref(), Some(plain.as_bytes()));
+    }
+    assert_eq!(approval::unbase32("MZXW 6YTB oi==").as_deref(), Some(&b"foobar"[..]));
+    assert_eq!(approval::base32(RFC_SECRET), "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    assert_eq!(approval::unbase32("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ").as_deref(), Some(RFC_SECRET));
+}
+
+#[test]
+fn text_that_isnt_base32_is_refused_and_so_is_a_secret_over_64_bytes() {
+    for bad in ["1", "MZXW6!", "MZ-XW6", "é", "MZXW6\n"] {
+        assert_eq!(approval::unbase32(bad), None, "{bad}");
+    }
+    assert!(approval::unbase32(&approval::base32(&[7u8; 64])).is_some());
+    assert_eq!(approval::unbase32(&approval::base32(&[7u8; 65])), None);
+    // Round trip of every length.
+    for n in 0..40u8 {
+        let bytes: Vec<u8> = (0..n).map(|i| i.wrapping_mul(37).wrapping_add(11)).collect();
+        assert_eq!(approval::unbase32(&approval::base32(&bytes)), Some(bytes), "{n}");
+    }
+}
+
+#[test]
+fn the_authenticator_address_and_the_typed_code() {
+    assert_eq!(approval::otpauth_uri("ABCD"), "otpauth://totp/MailCraft?secret=ABCD&issuer=MailCraft");
+    for (text, want) in [
+        ("123456", Some(123_456)),
+        (" 123456 ", Some(123_456)),
+        ("000001", Some(1)),
+        ("12345", None),
+        ("1234567", None),
+        ("12 456", None),
+        ("12345a", None),
+        ("", None),
+        ("+12345", None),
+        ("١٢٣٤٥٦", None),
+    ] {
+        assert_eq!(approval::parse_code(text), want, "{text:?}");
+    }
+}
+
+fn clean() -> RuleFacts {
+    RuleFacts {
+        rules_on: true,
+        is_reply: true,
+        owner_wrote_in_thread: true,
+        from_receiving_account: true,
+        unknown_recipients: Vec::new(),
+        attachments: 0,
+        checks: 0,
+        sent_today: 0,
+        daily_limit: 20,
+    }
+}
+
+#[test]
+fn a_clean_reply_needs_no_code_and_each_rule_missed_says_so() {
+    assert_eq!(rules::misses(&clean()), []);
+    let broken: [(RuleFacts, RuleMiss); 7] = [
+        (RuleFacts { is_reply: false, ..clean() }, RuleMiss::NotAReply),
+        (RuleFacts { owner_wrote_in_thread: false, ..clean() }, RuleMiss::OwnerNotInThread),
+        (RuleFacts { from_receiving_account: false, ..clean() }, RuleMiss::OtherAccount),
+        (RuleFacts { unknown_recipients: vec!["a@example.com".into(), "b@example.com".into()], ..clean() }, RuleMiss::UnknownRecipients { count: 2 }),
+        (RuleFacts { attachments: 1, ..clean() }, RuleMiss::HasAttachments),
+        (RuleFacts { checks: 1, ..clean() }, RuleMiss::SendChecks),
+        (RuleFacts { sent_today: 20, ..clean() }, RuleMiss::DailyLimit),
+    ];
+    for (facts, miss) in broken {
+        assert_eq!(rules::misses(&facts), std::slice::from_ref(&miss), "{miss:?}");
+    }
+    assert_eq!(rules::misses(&RuleFacts { rules_on: false, ..clean() }), [RuleMiss::RulesOff]);
+    assert_eq!(rules::misses(&RuleFacts { daily_limit: 0, ..clean() }), [RuleMiss::DailyLimit]);
+    // A new message has no thread or original account to speak of.
+    assert_eq!(
+        rules::misses(&RuleFacts { is_reply: false, owner_wrote_in_thread: false, from_receiving_account: false, ..clean() }),
+        [RuleMiss::NotAReply]
+    );
+    // Several at once are all said.
+    let many = RuleFacts { attachments: 2, sent_today: 99, ..clean() };
+    assert_eq!(rules::misses(&many), [RuleMiss::HasAttachments, RuleMiss::DailyLimit]);
+    assert_eq!(serde_json::to_value(RuleMiss::UnknownRecipients { count: 3 }).unwrap(), json!({"rule": "unknownRecipients", "count": 3}));
+    assert_eq!(serde_json::to_value(RuleMiss::OwnerNotInThread).unwrap(), json!({"rule": "ownerNotInThread"}));
 }

@@ -89,6 +89,7 @@ pub struct McpSettings {
     pub version: u32,
     pub enabled: bool,
     pub tokens: Vec<TokenRecord>,
+    pub approval: super::approval::ApprovalRecord,
     pub rules: SendRules,
     /// The local day number and how many automatic sends that day made.
     pub sent_today: (i64, u32),

@@ -9,8 +9,10 @@ use super::*;
 use crate::McpOutcome;
 use crate::mcp::Permission;
 
+mod approval;
 mod permissions;
 mod protocol;
+mod sending;
 mod tools;
 
 /// A token (the same in every test: each session has its own records).
@@ -57,6 +59,11 @@ fn call(s: &mut Session, t: &str, method: &str, params: Value) -> Value {
 /// A `tools/call` answer's `result`.
 fn tool(s: &mut Session, t: &str, name: &str, args: Value) -> Value {
     call(s, t, "tools/call", json!({"name": name, "arguments": args}))["result"].clone()
+}
+
+/// [`tool`] at a time of the test's choosing (a code is good for a time).
+fn tool_at(s: &mut Session, t: &str, name: &str, args: Value, now_ms: i64) -> Value {
+    reply(s.mcp_handle(t, &request(1, "tools/call", json!({"name": name, "arguments": args})), now_ms))["result"].clone()
 }
 
 /// What a tool answered, which must not be an error.

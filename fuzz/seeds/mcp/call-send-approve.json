@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"mail_send","arguments":{"pending_id":"0123456789abcdef","approval_code":"123456"}}}

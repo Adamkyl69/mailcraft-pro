@@ -120,6 +120,9 @@ pub(super) async fn job(sh: &Rcs, id: &str, j: Job) {
             sh,
             Event::Identity { account: id.to_string(), chain: Vec::new(), older: Vec::new(), for_reading: false, error: Some(BROWSER_SMIME.into()) },
         ),
+        // There's no keychain in the browser: nothing is kept, and nothing is there to read.
+        Job::KeepAppSecret { what, .. } => emit(sh, Event::AppSecretKept { what, error: Some("there's no keychain in the browser".into()) }),
+        Job::ReadAppSecret { what } => emit(sh, Event::AppSecretRead { what, secret: None }),
         Job::Start { .. }
         | Job::SmtpPassword { .. }
         | Job::DavPassword { .. }

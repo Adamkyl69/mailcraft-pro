@@ -188,6 +188,8 @@ impl Worker {
             | Job::UseHeldKey { .. }
             | Job::Pgp { .. }
             | Job::CheckUpdates
+            | Job::KeepAppSecret { .. }
+            | Job::ReadAppSecret { .. }
             | Job::StopSearch => {}
             Job::Start { .. }
             | Job::SmtpPassword { .. }

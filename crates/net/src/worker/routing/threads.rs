@@ -230,6 +230,38 @@ impl Pool {
         }
     }
 
+    /// An app-level secret kept in (or deleted from) the keychain, on a thread of its own: the
+    /// keychain may ask the user first (macOS does), as `Worker::settle_password` notes.
+    pub(super) fn keep_app_secret(&self, what: String, secret: Option<Secret>) {
+        let (sink, creds, asked) = (self.sink.clone(), self.creds.clone(), what.clone());
+        let spawned = spawn("mail-app-secret", move || {
+            let error = match secret {
+                Some(s) => creds.set_app_secret(&what, &s.0).err(),
+                None => {
+                    creds.delete_app_secret(&what);
+                    None
+                }
+            };
+            sink.emit(Event::AppSecretKept { what, error });
+        });
+        if let Err(e) = spawned {
+            self.sink.emit(Event::AppSecretKept { what: asked, error: Some(format!("no thread could be started ({e})")) });
+        }
+    }
+
+    /// An app-level secret read from the keychain, on a thread of its own.
+    pub(super) fn read_app_secret(&self, what: String) {
+        let (sink, creds, asked) = (self.sink.clone(), self.creds.clone(), what.clone());
+        let spawned = spawn("mail-app-secret", move || {
+            let secret = creds.get_app_secret(&what).map(Secret);
+            sink.emit(Event::AppSecretRead { what, secret });
+        });
+        if let Err(e) = spawned {
+            log::warn!("app secret: {e}");
+            self.sink.emit(Event::AppSecretRead { what: asked, secret: None });
+        }
+    }
+
     /// The servers for an address being set up (autoconfiguration), looked for on a thread of
     /// its own.
     pub(super) fn discover(&self, email: String) {

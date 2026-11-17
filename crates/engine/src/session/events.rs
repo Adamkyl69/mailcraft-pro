@@ -27,6 +27,8 @@ impl Session {
             | Event::HeldKeys { .. }
             | Event::PgpKeys { .. }
             | Event::PgpDecrypted { .. }) => self.apply_smime(e),
+            Event::AppSecretRead { what, secret } => self.mcp_secret_read(&what, secret),
+            Event::AppSecretKept { what, error } => self.mcp_secret_kept(&what, error),
             Event::Status { account, status } => self.status_changed(account, status),
             Event::Transfer { account, transfer } => self.transfer_went(&account, transfer),
             Event::Folders { account, folders } => self.folders_listed(account, folders),

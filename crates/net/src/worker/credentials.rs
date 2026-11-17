@@ -26,6 +26,15 @@ pub trait Credentials: Send + Sync {
         Err("there's no keychain to keep it in".into())
     }
     fn delete_secret(&self, _account: &AccountConfig, _what: &str) {}
+    /// A secret of the app's own, not an account's (`mcp-approval`: the key of the codes that
+    /// approve what connected apps send). A store without them keeps none.
+    fn get_app_secret(&self, _what: &str) -> Option<String> {
+        None
+    }
+    fn set_app_secret(&self, _what: &str, _secret: &str) -> std::result::Result<(), String> {
+        Err("there's no keychain to keep it in".into())
+    }
+    fn delete_app_secret(&self, _what: &str) {}
 }
 
 /// Passwords held in memory only (tests, the CLI, and when no keychain is available).
@@ -65,6 +74,19 @@ impl Credentials for MemoryCredentials {
     fn delete_secret(&self, account: &AccountConfig, what: &str) {
         if let Ok(mut m) = self.0.lock() {
             m.remove(&format!("{}|{what}", account.id));
+        }
+    }
+    // An account id never holds `:` (a message key is split on it), so these can't be an account's.
+    fn get_app_secret(&self, what: &str) -> Option<String> {
+        self.0.lock().ok().and_then(|m| m.get(&format!("app:{what}")).cloned())
+    }
+    fn set_app_secret(&self, what: &str, secret: &str) -> std::result::Result<(), String> {
+        self.0.lock().map_err(|e| e.to_string())?.insert(format!("app:{what}"), secret.to_string());
+        Ok(())
+    }
+    fn delete_app_secret(&self, what: &str) {
+        if let Ok(mut m) = self.0.lock() {
+            m.remove(&format!("app:{what}"));
         }
     }
 }

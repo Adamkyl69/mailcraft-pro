@@ -5,7 +5,9 @@
 //! table. It knows nothing of the `Session`; the part that acts on it is `session/mcp.rs`, which
 //! uses these (one way: `session` to `mcp`, so the two never form a cycle with `cmd`).
 
+pub mod approval;
 pub mod protocol;
+pub mod rules;
 pub mod tokens;
 pub mod tools;
 

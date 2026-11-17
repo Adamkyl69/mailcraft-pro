@@ -218,6 +218,17 @@ impl Credentials for Keychain {
     fn delete_secret(&self, account: &AccountConfig, what: &str) {
         remove(SERVICE, &format!("{}|{what}", account.id));
     }
+    // The entry user is `app:{what}`: account entries are `{id}|...`, and an account id never holds
+    // `:` (`MessageKey::to_id` splits on it), so the names can't collide.
+    fn get_app_secret(&self, what: &str) -> Option<String> {
+        load(SERVICE, &format!("app:{what}"))
+    }
+    fn set_app_secret(&self, what: &str, secret: &str) -> Result<(), String> {
+        store(SERVICE, &format!("app:{what}"), secret)
+    }
+    fn delete_app_secret(&self, what: &str) {
+        remove(SERVICE, &format!("app:{what}"));
+    }
 }
 
 #[cfg(test)]

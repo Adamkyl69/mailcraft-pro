@@ -5,8 +5,10 @@
 use std::collections::BTreeSet;
 
 use super::*;
+use crate::mcp::approval::{self, ApprovalRecord, ApprovalState};
 use crate::mcp::tokens::{self, TokenRecord};
-use crate::mcp::{MAX_TOKENS, Permission};
+use crate::mcp::{APPROVAL_SECRET, MAX_TOKENS, Permission};
+use mailcraft_model::Job;
 
 /// Only a click in the Connected apps card.
 fn owner_only(s: &Session) -> Option<&'static str> {
@@ -27,6 +29,19 @@ pub(super) fn commands() -> Vec<CommandSpec> {
             .when(owner_only),
         CommandSpec::new("mcp.dismissToken", "Done with the new token", LOCATION, dismiss_token).when(owner_only),
         CommandSpec::new("mcp.revokeToken", "Revoke a token", LOCATION, revoke_token).params(r#"{"id": string}"#).when(owner_only),
+        CommandSpec::new("mcp.setupApproval", "Set up approval codes", LOCATION, setup_approval).when(owner_only),
+        CommandSpec::new("mcp.confirmApproval", "Confirm an approval code", LOCATION, confirm_approval)
+            .params(r#"{"code": string}"#)
+            .when(owner_only),
+        CommandSpec::new("mcp.resetApproval", "Reset approval codes", LOCATION, reset_approval).when(owner_only),
+        CommandSpec::new("mcp.unlockApproval", "Unlock sending", LOCATION, unlock_approval).when(owner_only),
+        CommandSpec::new("mcp.setRules", "Set the rules for sending without a code", LOCATION, set_rules)
+            .params(r#"{"noCodeReplies"?: bool, "dailyLimit"?: number (0 to 200)}"#)
+            .when(owner_only),
+        CommandSpec::new("mcp.sendPending", "Send a message held for approval", LOCATION, send_pending).params(r#"{"id": string}"#).when(owner_only),
+        CommandSpec::new("mcp.discardPending", "Discard a message held for approval", LOCATION, discard_pending)
+            .params(r#"{"id": string}"#)
+            .when(owner_only),
     ]
 }
 
@@ -112,4 +127,94 @@ fn revoke_token(s: &mut Session, v: &Value) -> CmdResult {
         s.save_mcp().map_err(CmdError::Failed)?;
     }
     Ok(json!({"revoked": revoked}))
+}
+
+/// The secret that codes are made from: 20 random bytes, shown as a QR code and as text until a
+/// code made from it confirms it.
+fn setup_approval(s: &mut Session, _: &Value) -> CmdResult {
+    writable(s)?;
+    if s.mcp.settings.approval.state == ApprovalState::Active && s.mcp.secret.is_some() {
+        return Err(CmdError::Params("approval is on already: reset it first".into()));
+    }
+    let random = s.mcp.random.ok_or_else(|| CmdError::Disabled("no secure random source".into()))?;
+    let bytes = random(20).filter(|b| b.len() == 20).ok_or_else(|| CmdError::Failed("no secure random source".into()))?;
+    let secret_b32 = approval::base32(&bytes);
+    let uri = approval::otpauth_uri(&secret_b32);
+    s.mcp.setup = Some(crate::session::ApprovalSetup { secret_b32, uri, bytes });
+    Ok(json!({}))
+}
+
+/// A code from the authenticator app that was set up: approval is on, and the secret is kept in
+/// the keychain.
+fn confirm_approval(s: &mut Session, v: &Value) -> CmdResult {
+    writable(s)?;
+    let code = approval::parse_code(p::req_str(v, "code")?).ok_or_else(|| CmdError::Params("the code is six digits".into()))?;
+    let setup = s.mcp.setup.clone().ok_or_else(|| CmdError::Disabled("set up approval first".into()))?;
+    // A scratch record: a wrong code here counts for nothing (only the owner can be typing it).
+    let mut scratch = ApprovalRecord { state: ApprovalState::Active, ..Default::default() };
+    let approval::Verdict::Ok { step } = approval::check(&mut scratch, &setup.bytes, code, s.clock.now) else {
+        return Err(CmdError::Params("that code isn't right: try the next one".into()));
+    };
+    s.mcp.secret = Some(setup.bytes);
+    s.mcp.settings.approval = ApprovalRecord { state: ApprovalState::Active, last_step: step, failures: 0, locked: false };
+    s.mcp.setup = None;
+    s.save_mcp().map_err(CmdError::Failed)?;
+    s.push_job(Job::KeepAppSecret { what: APPROVAL_SECRET.to_string(), secret: Some(mailcraft_model::job::Secret(setup.secret_b32)) });
+    Ok(json!({"active": true}))
+}
+
+/// Approval off, its secret let go of, and every held send discarded: for a lost phone.
+fn reset_approval(s: &mut Session, _: &Value) -> CmdResult {
+    writable(s)?;
+    s.mcp.settings.approval = ApprovalRecord::default();
+    s.mcp.secret = None;
+    s.mcp.setup = None;
+    s.mcp_discard_pending(None);
+    s.save_mcp().map_err(CmdError::Failed)?;
+    s.push_job(Job::KeepAppSecret { what: APPROVAL_SECRET.to_string(), secret: None });
+    log::warn!(target: "mailcraft::mcp", "approval reset");
+    Ok(json!({}))
+}
+
+fn unlock_approval(s: &mut Session, _: &Value) -> CmdResult {
+    writable(s)?;
+    s.mcp.settings.approval.locked = false;
+    s.mcp.settings.approval.failures = 0;
+    s.save_mcp().map_err(CmdError::Failed)?;
+    log::warn!(target: "mailcraft::mcp", "sending unlocked");
+    Ok(json!({}))
+}
+
+/// The most automatic sends a day that can be set.
+const MAX_DAILY: i64 = 200;
+
+fn set_rules(s: &mut Session, v: &Value) -> CmdResult {
+    writable(s)?;
+    // Everything given is read before anything changes.
+    let no_code = match v.get("noCodeReplies") {
+        None => None,
+        Some(Value::Bool(b)) => Some(*b),
+        Some(_) => return Err(CmdError::Params("`noCodeReplies` must be true or false".into())),
+    };
+    let limit = match v.get("dailyLimit") {
+        None => None,
+        Some(n) => match n.as_i64().filter(|n| (0..=MAX_DAILY).contains(n)).and_then(|n| u32::try_from(n).ok()) {
+            Some(n) => Some(n),
+            None => return Err(CmdError::Params(format!("`dailyLimit` must be a whole number from 0 to {MAX_DAILY}"))),
+        },
+    };
+    let rules = &mut s.mcp.settings.rules;
+    rules.no_code_replies = no_code.unwrap_or(rules.no_code_replies);
+    rules.daily_limit = limit.unwrap_or(rules.daily_limit);
+    s.save_mcp().map_err(CmdError::Failed)?;
+    Ok(json!({"noCodeReplies": s.mcp.settings.rules.no_code_replies, "dailyLimit": s.mcp.settings.rules.daily_limit}))
+}
+
+fn send_pending(s: &mut Session, v: &Value) -> CmdResult {
+    s.mcp_send_pending(p::req_str(v, "id")?)
+}
+
+fn discard_pending(s: &mut Session, v: &Value) -> CmdResult {
+    let id = p::req_str(v, "id")?;
+    Ok(json!({"discarded": s.mcp_discard_pending(Some(id))}))
 }

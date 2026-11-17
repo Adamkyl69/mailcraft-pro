@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use serde_json::{Map, Value, json};
 
-use super::{MAX_LIST, MAX_LOG, MAX_STRING, Permission};
+use super::{MAX_BODY, MAX_LIST, MAX_LOG, MAX_STRING, Permission};
 
 /// The commands `mail_run` may run: easy to undo, and about the messages given. Everything else
 /// is denied (`mail_run` also narrows `mail.move` and `mail.categorize`).
@@ -25,7 +25,7 @@ pub struct Tool {
 }
 
 /// Every tool, in the order they're listed.
-pub const TOOLS: [Tool; 8] = [
+pub const TOOLS: [Tool; 9] = [
     Tool {
         name: "mail_accounts",
         title: "List accounts and folders",
@@ -105,6 +105,16 @@ pub const TOOLS: [Tool; 8] = [
         idempotent: false,
         input: run_input,
         output: run_output,
+    },
+    Tool {
+        name: "mail_send",
+        title: "Send a message",
+        description: "Send a new message (`to`, `subject`, `body`) or a reply (`in_reply_to`: a key, and the `body` to put above the quoted message). A reply in a conversation the owner has written in, to people they've written to, with no files, goes at once. Anything else comes back as needsCode: ask the owner for the 6-digit code from their authenticator app, then call again with only `pending_id` and `approval_code`.",
+        permission: Permission::Send,
+        read_only: false,
+        idempotent: false,
+        input: send_input,
+        output: send_output,
     },
 ];
 
@@ -208,6 +218,35 @@ fn run_input() -> Value {
         }),
         &["command", "keys"],
     )
+}
+
+fn send_input() -> Value {
+    let people = json!({"anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]});
+    schema(
+        json!({
+            "to": people.clone(),
+            "cc": people,
+            "subject": {"type": "string"},
+            "body": {"type": "string", "maxLength": MAX_BODY},
+            "attachments": {"type": "array", "items": {"type": "string"}, "maxItems": 10, "description": "Paths of files on this computer."},
+            "from": {"type": "string", "description": "An account id, or one of an account's addresses."},
+            "in_reply_to": {"type": "string", "description": "The key of the message to answer."},
+            "pending_id": {"type": "string", "description": "From a needsCode answer; with approval_code and nothing else."},
+            "approval_code": {"type": "string", "description": "The owner's 6-digit code."},
+        }),
+        &[],
+    )
+}
+
+fn send_output() -> Value {
+    output(json!({
+        "outcome": {"type": "string", "enum": ["sent", "queued", "sending", "needsCode"]},
+        "id": {"type": "integer"},
+        "error": {"type": "string"},
+        "pendingId": {"type": "string"},
+        "expiresAt": {"type": "integer"},
+        "summary": {"type": "object"},
+    }))
 }
 
 fn output(properties: Value) -> Value {
@@ -337,6 +376,17 @@ impl<'a> Args<'a> {
             .map(|x| x.as_str().filter(|s| s.len() <= MAX_STRING).ok_or_else(|| format!("`{name}` must hold strings of at most {MAX_STRING} bytes")))
             .collect::<Result<Vec<_>, _>>()
             .map(Some)
+    }
+
+    /// A string, or a list of up to `max` strings (an address field).
+    pub fn string_or_list(&self, name: &str, max: usize) -> Result<Vec<&'a str>, String> {
+        match self.map.get(name) {
+            None | Some(Value::Null) => Ok(Vec::new()),
+            Some(Value::String(s)) if s.len() <= MAX_STRING => Ok(vec![s]),
+            Some(Value::String(_)) => Err(format!("`{name}` is too long (at most {MAX_STRING} bytes)")),
+            Some(Value::Array(_)) => Ok(self.strings(name, 0, max)?.unwrap_or_default()),
+            Some(_) => Err(format!("`{name}` must be a string or a list of strings")),
+        }
     }
 
     /// An object (`params`).

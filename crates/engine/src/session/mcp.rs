@@ -12,14 +12,19 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use serde_json::{Value, json};
 
 use super::*;
+use crate::mcp::approval::{self, ApprovalState};
 use crate::mcp::protocol::{self, Id, Parsed};
 use crate::mcp::tokens::{self, McpSettings, RateWindow, TokenRecord};
 use crate::mcp::tools::{self, Args};
-use crate::mcp::{BridgeCommand, LogLine, LogQuery, MAX_TOKENS, PROTOCOL_VERSIONS, Permission, READ_WAIT_MS, SYNC_WAIT_MS};
+use crate::mcp::{
+    APPROVAL_SECRET, BridgeCommand, LogLine, LogQuery, MAX_TOKENS, PROTOCOL_VERSIONS, Permission, READ_WAIT_MS, SEND_WAIT_MS, SYNC_WAIT_MS,
+};
 
 mod aside;
+mod facts;
 mod organize;
 mod reading;
+mod sending;
 
 /// The document the settings are kept in.
 const MCP_DOC: &str = "mcp.json";
@@ -42,6 +47,49 @@ pub struct Revealed {
     pub token: String,
 }
 
+impl std::fmt::Debug for Revealed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Revealed({:?}, <token>)", self.name)
+    }
+}
+
+/// An approval being set up: the secret, shown as a QR code and as text until a code from the
+/// authenticator app confirms it. Never saved or logged.
+#[derive(Clone)]
+pub struct ApprovalSetup {
+    /// The secret in base32, for the card.
+    pub secret_b32: String,
+    /// The `otpauth://` address the QR code holds.
+    pub uri: String,
+    pub(crate) bytes: Vec<u8>,
+}
+
+impl std::fmt::Debug for ApprovalSetup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ApprovalSetup(<secret>)")
+    }
+}
+
+/// A send waiting for a code (or for Send or Discard in the app): the message as it was frozen.
+#[derive(Clone)]
+pub struct PendingSend {
+    /// 16 hex characters. Approving needs the code as well, so it isn't a secret on its own.
+    pub id: String,
+    /// Only this token may approve it.
+    pub token_id: String,
+    pub compose: Compose,
+    pub created_ms: i64,
+    pub expires_ms: i64,
+    /// What the call answered: who it's to, the subject, the warnings, why a code is needed.
+    pub summary: Value,
+}
+
+impl std::fmt::Debug for PendingSend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PendingSend({})", self.id)
+    }
+}
+
 /// MCP's state in the session.
 #[derive(Default)]
 pub struct McpState {
@@ -49,6 +97,12 @@ pub struct McpState {
     pub settings: McpSettings,
     /// A token just made, shown once on the card until dismissed.
     pub revealed: Option<Revealed>,
+    /// Approval being set up, until a code confirms it. Never saved.
+    pub setup: Option<ApprovalSetup>,
+    /// Sends waiting for a code (or Send or Discard in the app). In memory only.
+    pub pending: Vec<PendingSend>,
+    /// The approval secret, read from the keychain. Never saved here, never logged.
+    pub(crate) secret: Option<Vec<u8>>,
     /// The system's secure random source, set by the app (`None`: tokens can't be made).
     pub random: Option<fn(usize) -> Option<Vec<u8>>>,
     /// This run's WARN and ERROR lines, set by the app (`None`: `monitor_log` has none).
@@ -73,6 +127,12 @@ pub struct McpState {
     versions: HashMap<String, &'static str>,
 }
 
+impl std::fmt::Debug for McpState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpState").field("tokens", &self.settings.tokens.len()).field("pending", &self.pending.len()).finish_non_exhaustive()
+    }
+}
+
 /// A call waiting for the network.
 struct Deferred {
     ticket: u64,
@@ -91,11 +151,22 @@ enum Waiting {
     Sync { accounts: BTreeMap<String, bool>, failed: BTreeMap<String, String> },
     /// `mail_read`: a message's source being downloaded.
     Body { key: MessageKey, args: Value, outcome: Option<Result<(), String>> },
+    /// `mail_send`: the server's word on a message handed over.
+    Send { compose_id: u64, outcome: Option<Result<SendEnd, String>> },
+}
+
+/// How a send that was handed over ended.
+enum SendEnd {
+    Sent,
+    /// Kept in the Outbox to go later, and why.
+    Queued(String),
 }
 
 /// How a tool came out: an answer, or waiting for the network.
 enum Step {
     Done(Result<Value, String>),
+    /// Not allowed (a limit, a lock, no approval): said as a tool error, and logged as refused.
+    Refused(String),
     Later(Waiting),
 }
 
@@ -147,6 +218,14 @@ fn tool_reply(result: &Result<Value, String>, structured: bool) -> Value {
     }
 }
 
+/// How a finished call is logged: what a send says (`sent`, `needsCode`...), else `ok` or `error`.
+fn outcome_of(result: &Result<Value, String>) -> &str {
+    match result {
+        Ok(v) => v.get("outcome").and_then(Value::as_str).unwrap_or("ok"),
+        Err(_) => "error",
+    }
+}
+
 fn permissions_with_read(mut perms: BTreeSet<Permission>) -> BTreeSet<Permission> {
     perms.insert(Permission::Read);
     perms
@@ -156,6 +235,7 @@ impl Session {
     /// Answer one request from an AI app that came with `token`, at `now_ms` (Unix
     /// milliseconds, read by the app).
     pub fn mcp_handle(&mut self, token: &str, request: &Value, now_ms: i64) -> McpOutcome {
+        self.drop_expired_pending(now_ms);
         let req = match protocol::parse_value(request) {
             Parsed::Invalid { id, code, message } => return McpOutcome::Reply(protocol::error(id.as_ref(), code, &message)),
             Parsed::Request(r) => r,
@@ -248,12 +328,15 @@ impl Session {
             return McpOutcome::Reply(protocol::result(&id, tool_reply(&denied, structured)));
         }
         let watch = Watch::start();
-        let step = self.mcp_tool(tool.name, &args, perms, now_ms);
+        let step = self.mcp_tool(tool.name, &args, (perms, token_id), now_ms);
         match step {
             Step::Done(result) => {
-                let outcome = if result.is_ok() { "ok" } else { "error" };
-                log::info!(target: "mailcraft::mcp", "{name}: {} {outcome} in {} ms", tool.name, watch.ms());
+                log::info!(target: "mailcraft::mcp", "{name}: {} {} in {} ms", tool.name, outcome_of(&result), watch.ms());
                 McpOutcome::Reply(protocol::result(&id, tool_reply(&result, structured)))
+            }
+            Step::Refused(why) => {
+                log::info!(target: "mailcraft::mcp", "{name}: {} refused in {} ms", tool.name, watch.ms());
+                McpOutcome::Reply(protocol::result(&id, tool_reply(&Err(why), structured)))
             }
             Step::Later(kind) => {
                 self.mcp.next_ticket = self.mcp.next_ticket.wrapping_add(1);
@@ -262,6 +345,7 @@ impl Session {
                 let wait = match kind {
                     Waiting::Sync { .. } => SYNC_WAIT_MS,
                     Waiting::Body { .. } => READ_WAIT_MS,
+                    Waiting::Send { .. } => SEND_WAIT_MS,
                 };
                 log::info!(target: "mailcraft::mcp", "{name}: {} deferred", tool.name);
                 self.mcp.waiting.push(Deferred {
@@ -279,8 +363,8 @@ impl Session {
         }
     }
 
-    fn mcp_tool(&mut self, tool: &str, args: &Value, perms: &BTreeSet<Permission>, now_ms: i64) -> Step {
-        let _ = now_ms;
+    fn mcp_tool(&mut self, tool: &str, args: &Value, who: (&BTreeSet<Permission>, &str), now_ms: i64) -> Step {
+        let (perms, token_id) = who;
         match tool {
             "mail_accounts" => self.mail_accounts(args).into(),
             "mail_list" => self.mail_list(args).into(),
@@ -290,6 +374,7 @@ impl Session {
             "monitor_log" => self.monitor_log(args).into(),
             "mail_sync" => self.mail_sync(args),
             "mail_run" => self.mail_run(args).into(),
+            "mail_send" => self.mail_send(args, token_id, now_ms),
             _ => Step::Done(Err("no such tool".to_string())),
         }
     }
@@ -297,6 +382,7 @@ impl Session {
     /// Calls that were answered `Later` and are done now, or out of time: the ticket and the
     /// line to answer with.
     pub fn mcp_finished(&mut self, now_ms: i64) -> Vec<(u64, String)> {
+        self.drop_expired_pending(now_ms);
         let waiting = std::mem::take(&mut self.mcp.waiting);
         let mut done = Vec::new();
         for d in waiting {
@@ -304,9 +390,8 @@ impl Session {
                 None => self.mcp.waiting.push(d),
                 Some(result) => {
                     self.mcp.busy.remove(&d.token_id);
-                    let outcome = if result.is_ok() { "ok" } else { "error" };
                     let name = self.mcp.settings.tokens.iter().find(|t| t.id == d.token_id).map_or("a revoked app", |t| t.name.as_str());
-                    log::info!(target: "mailcraft::mcp", "{name}: {} {outcome} after {} ms", d.tool, now_ms.saturating_sub(d.started_ms).max(0));
+                    log::info!(target: "mailcraft::mcp", "{name}: {} {} after {} ms", d.tool, outcome_of(&result), now_ms.saturating_sub(d.started_ms).max(0));
                     done.push((d.ticket, protocol::result(&d.id, tool_reply(&result, d.structured))));
                 }
             }
@@ -333,8 +418,16 @@ impl Session {
                 Some(Err(e)) => Some(Err(format!("the message couldn't be downloaded: {e}"))),
                 Some(Ok(())) => Some(match self.mail_read(args, true) {
                     Step::Done(r) => r,
+                    Step::Refused(why) => Err(why),
                     Step::Later(_) => Err("the message didn't download".to_string()),
                 }),
+            },
+            Waiting::Send { compose_id, outcome } => match outcome {
+                Some(Ok(SendEnd::Sent)) => Some(Ok(json!({"outcome": "sent", "id": compose_id}))),
+                Some(Ok(SendEnd::Queued(why))) => Some(Ok(json!({"outcome": "queued", "id": compose_id, "error": why}))),
+                Some(Err(why)) => Some(Err(format!("not sent: {why}"))),
+                None if late => Some(Ok(json!({"outcome": "sending", "id": compose_id, "note": "handed to the server; no word yet"}))),
+                None => None,
             },
         }
     }
@@ -378,8 +471,50 @@ impl Session {
                 }
                 (Waiting::Body { key, outcome, .. }, Event::Body { key: arrived, .. }) if key == arrived => *outcome = Some(Ok(())),
                 (Waiting::Body { key, outcome, .. }, Event::BodyFailed { key: failed, error }) if key == failed => *outcome = Some(Err(clip(error))),
+                (Waiting::Send { compose_id, outcome }, Event::Sent { id, .. }) if compose_id == id => *outcome = Some(Ok(SendEnd::Sent)),
+                (Waiting::Send { compose_id, outcome }, Event::SendFailed { id, error, .. }) if compose_id == id => *outcome = Some(Err(clip(error))),
+                (Waiting::Send { compose_id, outcome }, Event::Queued { id, error, .. }) if compose_id == id => {
+                    *outcome = Some(Ok(SendEnd::Queued(clip(error))))
+                }
+                (Waiting::Send { compose_id, outcome }, Event::Protected { id, error: Some(error), .. }) if compose_id == id => {
+                    *outcome = Some(Err(format!("it couldn't be signed or encrypted: {}", clip(error))));
+                }
                 _ => {}
             }
+        }
+    }
+
+    /// Pending sends past their time are dropped.
+    fn drop_expired_pending(&mut self, now_ms: i64) {
+        self.mcp.pending.retain(|p| p.expires_ms > now_ms);
+    }
+
+    /// Whether the approval is on but its secret isn't here yet (the app then asks the keychain
+    /// for it at start).
+    pub fn mcp_wants_secret(&self) -> bool {
+        self.mcp.settings.approval.state == ApprovalState::Active && self.mcp.secret.is_none()
+    }
+
+    /// The keychain gave the approval secret (or none: approval then has to be set up again).
+    pub(crate) fn mcp_secret_read(&mut self, what: &str, secret: Option<Secret>) {
+        if what != APPROVAL_SECRET {
+            return;
+        }
+        self.mcp.secret = secret.and_then(|s| approval::unbase32(&s.0));
+    }
+
+    /// The keychain kept the approval secret, or said it couldn't: approval is then off again.
+    pub(crate) fn mcp_secret_kept(&mut self, what: &str, error: Option<String>) {
+        let Some(why) = error.filter(|_| what == APPROVAL_SECRET) else { return };
+        // Only a secret that was being kept (not one deleted by a reset) matters here.
+        if self.mcp.settings.approval.state == ApprovalState::Active {
+            self.mcp.settings.approval = Default::default();
+            self.mcp.secret = None;
+            self.mcp.pending.clear();
+            if let Err(e) = self.save_mcp() {
+                log::warn!(target: "mailcraft::mcp", "the settings couldn't be saved: {e}");
+            }
+            self.notice(format!("Approval couldn't be kept in the keychain: {why}"), true);
         }
     }
 

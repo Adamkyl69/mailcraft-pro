@@ -165,6 +165,11 @@ pub enum Job {
     /// Ask where MailCraft is published for its recent releases (File › About › Check for
     /// updates); answered by [`Event::Releases`].
     CheckUpdates,
+    /// Keep an app-level secret (not an account's: the approval secret of connected apps) in the
+    /// keychain, or (`None`) delete it. Answered by [`Event::AppSecretKept`].
+    KeepAppSecret { what: String, secret: Option<Secret> },
+    /// Read the app-level secret `what` from the keychain. Answered by [`Event::AppSecretRead`].
+    ReadAppSecret { what: String },
     /// Ask the account's server which addresses its mail is sent from (issue #81: a JMAP
     /// server keeps them, as identities). Answered by [`Event::IdentitiesFound`].
     FindIdentities { account: String },
@@ -360,6 +365,8 @@ impl Job {
             | Job::WorkOffline { .. }
             | Job::SetSync { .. }
             | Job::CheckUpdates
+            | Job::KeepAppSecret { .. }
+            | Job::ReadAppSecret { .. }
             | Job::StopSearch
             | Job::CheckRevocation { .. }
             | Job::FindHeldKeys { .. } => "",
@@ -383,6 +390,16 @@ impl Job {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum Event {
+    /// The app-level secret `what` as the keychain has it (`None`: none, or it couldn't be read).
+    AppSecretRead {
+        what: String,
+        secret: Option<Secret>,
+    },
+    /// A [`Job::KeepAppSecret`] done: `error` says why the keychain couldn't keep it.
+    AppSecretKept {
+        what: String,
+        error: Option<String>,
+    },
     Status {
         account: String,
         status: SyncStatus,

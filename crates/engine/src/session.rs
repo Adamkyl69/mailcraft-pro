@@ -42,7 +42,7 @@ use changing::Batch;
 use changing::keys_by_account;
 #[cfg(test)]
 pub(crate) use changing::{MOVED_IN_MAX, MovedIn};
-pub use mcp::{McpOutcome, McpState, Revealed};
+pub use mcp::{ApprovalSetup, McpOutcome, McpState, PendingSend, Revealed};
 #[cfg(test)]
 pub(crate) use opening::source_lines;
 pub use opening::{BodyWork, PreparedBody, SOURCE_SHOWN, SourceView, Toward};

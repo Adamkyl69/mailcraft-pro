@@ -90,8 +90,11 @@ impl Session {
                     Some(code) => FolderRole::from_code(code),
                     None => self.folder(account, folder).map(|f| f.role),
                 };
-                if matches!(role, Some(FolderRole::Trash | FolderRole::Junk)) {
-                    return Err("an AI app may not move mail to Trash or Junk".to_string());
+                // Trash and Junk are deletes (and a junk report a server may learn from). Sent is
+                // where "written to before" is read from: a message moved there, whoever it
+                // says it's from, would make its recipients known.
+                if matches!(role, Some(FolderRole::Trash | FolderRole::Junk | FolderRole::Sent)) {
+                    return Err("an AI app may not move mail to Trash, Junk or Sent".to_string());
                 }
             }
             "mail.categorize" => {

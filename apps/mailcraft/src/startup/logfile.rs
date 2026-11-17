@@ -12,6 +12,7 @@
 //! logged; past [`WAITING_MAX`] waiting, more are left out and counted (the count written after)
 //! rather than held. Closing ([`log::Log::flush`]) waits for what was handed over.
 
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,7 @@ use std::sync::{Condvar, Mutex, PoisonError};
 use std::time::Duration;
 
 use log::{Level, LevelFilter, Metadata, Record};
+use mailcraft_engine::mcp::{LogLine, LogQuery, MAX_LOG};
 
 /// Most written in one run (the rest of the run goes unlogged, and says so).
 const MAX: u64 = 4 << 20;
@@ -29,6 +31,13 @@ const FLUSH_WAIT: Duration = Duration::from_secs(2);
 
 pub const NAME: &str = "mailcraft.log";
 const OLD: &str = "mailcraft.old.log";
+
+/// Longest text of a line kept for `monitor_log`, bytes.
+const RECENT_TEXT: usize = 4 << 10;
+
+/// This run's warnings and errors (the last [`MAX_LOG`]), for AI apps' `monitor_log`
+/// ([`recent`]). Starts empty each run: only this process's lines, never the file's.
+static RECENT: Mutex<VecDeque<LogLine>> = Mutex::new(VecDeque::new());
 
 struct FileLog {
     /// The open file and how much has gone into it.
@@ -163,7 +172,11 @@ impl log::Log for FileLog {
         if !self.enabled(r.metadata()) {
             return;
         }
-        let line = line(&stamp(), r.level(), r.target(), &r.args().to_string());
+        let msg = r.args().to_string();
+        if r.level() <= Level::Warn {
+            note(&RECENT, now_secs(), r.level(), r.target(), &msg);
+        }
+        let line = line(&stamp(), r.level(), r.target(), &msg);
         if let Some(terminal) = self.terminal {
             echo(&mut *terminal(), &line);
         }
@@ -189,6 +202,14 @@ fn enabled(target: &str, level: Level) -> bool {
 /// a tab are written as escapes (`\r`, `\u{1b}`).
 fn line(stamp: &str, level: Level, target: &str, msg: &str) -> String {
     let mut out = format!("{stamp} {level:<5} {target}: ");
+    out.push_str(&escaped(msg));
+    out.push('\n');
+    out
+}
+
+/// `msg` as a line carries it (see [`line`]), without the newline at its end.
+fn escaped(msg: &str) -> String {
+    let mut out = String::new();
     for c in msg.trim_end().replace("\r\n", "\n").chars() {
         match c {
             '\n' => out.push_str("\n    "),
@@ -197,14 +218,58 @@ fn line(stamp: &str, level: Level, target: &str, msg: &str) -> String {
             c => out.push(c),
         }
     }
-    out.push('\n');
     out
+}
+
+/// Keep a warning or error in `ring` for `monitor_log`: its text escaped as the log file's line
+/// is and cut to [`RECENT_TEXT`] at a character boundary, the oldest dropped past [`MAX_LOG`].
+/// Takes the ring's lock for a moment, on whichever thread logs (never the log file's).
+fn note(ring: &Mutex<VecDeque<LogLine>>, at: i64, level: Level, target: &str, msg: &str) {
+    let mut text = escaped(msg);
+    if text.len() > RECENT_TEXT {
+        let mut end = RECENT_TEXT;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        text.truncate(end);
+    }
+    let panic = text.starts_with("internal error: a panic");
+    let mut ring = ring.lock().unwrap_or_else(PoisonError::into_inner);
+    while ring.len() >= MAX_LOG {
+        ring.pop_front();
+    }
+    ring.push_back(LogLine { at, level: level.to_string(), target: target.to_string(), text, panic });
+}
+
+/// The lines of `ring` that `q` asks for: since a time, errors only, the newest `limit`, oldest
+/// first.
+fn recent_in(ring: &Mutex<VecDeque<LogLine>>, q: &LogQuery) -> Vec<LogLine> {
+    let ring = ring.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut found: Vec<LogLine> = ring
+        .iter()
+        .rev()
+        .filter(|l| q.since.is_none_or(|since| l.at >= since) && (!q.errors_only || l.level == "ERROR"))
+        .take(q.limit)
+        .cloned()
+        .collect();
+    found.reverse();
+    found
+}
+
+/// This run's warnings and errors as `q` asks (`monitor_log`'s source).
+pub fn recent(q: &LogQuery) -> Vec<LogLine> {
+    recent_in(&RECENT, q)
+}
+
+/// Now, in Unix seconds (UTC).
+fn now_secs() -> i64 {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    i64::try_from(secs).unwrap_or(0)
 }
 
 /// Now, as `2026-10-19 14:03:07` (UTC).
 fn stamp() -> String {
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    let secs = i64::try_from(secs).unwrap_or(0);
+    let secs = now_secs();
     let (y, m, d) = mailcraft_engine::model::dates::civil_from_days(secs.div_euclid(86_400));
     let t = secs.rem_euclid(86_400);
     format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}", t / 3600, t % 3600 / 60, t % 60)
@@ -387,5 +452,50 @@ mod tests {
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("lines left out here: more came than the disk took"), "{} bytes", text.len());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The ring keeps warnings and errors with their text escaped as the file's lines are,
+    /// answers `since`, `errors_only` and `limit` (newest, oldest first), forgets the oldest
+    /// past `MAX_LOG`, and flags a panic's line.
+    #[test]
+    fn recent_warnings_and_errors_are_kept_for_monitor_log() {
+        let ring = Mutex::new(VecDeque::new());
+        let all = |limit| LogQuery { limit, since: None, errors_only: false };
+        assert!(recent_in(&ring, &all(10)).is_empty());
+        note(&ring, 100, Level::Warn, "mailcraft::sync", "slow\u{1b}[31m\nsecond line");
+        note(&ring, 200, Level::Error, "mailcraft::net", &panic_line(Some("sync"), Some(("a.rs", 7))));
+        note(&ring, 300, Level::Error, "mailcraft::net", "failed");
+        let lines = recent_in(&ring, &all(10));
+        assert_eq!(lines.iter().map(|l| l.at).collect::<Vec<_>>(), [100, 200, 300], "oldest first");
+        assert_eq!(lines[0].text, "slow\\u{1b}[31m\n    second line", "escaped as the file's lines are");
+        assert_eq!((lines[0].level.as_str(), lines[0].target.as_str(), lines[0].panic), ("WARN", "mailcraft::sync", false));
+        assert!(lines[1].panic && !lines[2].panic);
+        assert_eq!(recent_in(&ring, &all(2)).iter().map(|l| l.at).collect::<Vec<_>>(), [200, 300], "the newest two");
+        let errors = LogQuery { limit: 10, since: Some(250), errors_only: true };
+        assert_eq!(recent_in(&ring, &errors).iter().map(|l| l.at).collect::<Vec<_>>(), [300]);
+        assert!(recent_in(&ring, &LogQuery { limit: 10, since: Some(301), errors_only: false }).is_empty(), "a time ahead: none");
+        // Cut at a character boundary, and the oldest go past MAX_LOG.
+        let ring = Mutex::new(VecDeque::new());
+        note(&ring, 1, Level::Warn, "t", &"é".repeat(RECENT_TEXT));
+        assert_eq!(recent_in(&ring, &all(1)).first().map(|l| l.text.len()), Some(RECENT_TEXT));
+        for i in 0..MAX_LOG as i64 + 5 {
+            note(&ring, i, Level::Warn, "t", "x");
+        }
+        let kept = recent_in(&ring, &all(MAX_LOG * 2));
+        assert_eq!((kept.len(), kept.first().map(|l| l.at)), (MAX_LOG, Some(5)));
+    }
+
+    /// A line logged through the logger lands in the ring when it is a warning or worse, and
+    /// an info line doesn't.
+    #[test]
+    fn the_logger_keeps_warnings_in_the_ring() {
+        use log::Log;
+        let logger = FileLog::new(None, false);
+        let rec = |level, msg: &str| logger.log(&Record::builder().args(format_args!("{msg}")).level(level).target("mailcraft::probe").build());
+        rec(Level::Info, "fine");
+        rec(Level::Warn, "probe-warning");
+        let mine: Vec<LogLine> =
+            recent(&LogQuery { limit: MAX_LOG, since: None, errors_only: false }).into_iter().filter(|l| l.target == "mailcraft::probe").collect();
+        assert_eq!(mine.iter().map(|l| l.text.as_str()).collect::<Vec<_>>(), ["probe-warning"]);
     }
 }

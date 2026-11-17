@@ -24,13 +24,21 @@
 //! kept beside the socket in a file only the user can read (`.key`); a request without it is
 //! refused, so another program can't start messages or add events through the socket (one that
 //! can read the user's private files can already do far more).
+//!
+//! The same socket carries one more kind of request: a local AI app's MCP call, which
+//! `mailcraft-cli mcp` relays, `{"key": …, "mcp": {"token": …, "request": {…}}}`, answered with the
+//! JSON-RPC response on one line (`mcp.rs`). Each is answered on a thread of its own, so a launch
+//! is never kept waiting behind one, and the window's thread runs it on the session.
 
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use super::args::{Handed, MAX_ATTACHED};
+
+pub(crate) mod mcp;
 
 use mailcraft_net::instance::{Patient, TIMEOUT, UnixStream, read_key, socket_path};
 
@@ -41,8 +49,9 @@ use uds_windows::UnixListener;
 
 /// What the running MailCraft answers.
 const OK: &str = "ok\n";
-/// Longest request read: links and paths, far more than a launch hands over.
-const MAX_REQUEST: u64 = 1 << 20;
+/// Longest request read: links and paths, far more than a launch hands over; and an MCP call's
+/// JSON-RPC line (`mailcraft_engine::mcp::MAX_LINE`) with its key and token around it.
+const MAX_REQUEST: u64 = (1 << 20) + (8 << 10);
 /// Most links and files one request hands over; more are left out.
 const MAX_OPEN: usize = 64;
 /// Most links and files waiting for the window.
@@ -70,6 +79,19 @@ struct Asks {
     show: AtomicBool,
     handed: Mutex<Handed>,
     wake: Mutex<Option<egui::Context>>,
+    /// MCP calls waiting for the window's thread (`mcp.rs`).
+    mcp: Mutex<VecDeque<mcp::Asked>>,
+    /// MCP connections being answered now, each on a thread of its own.
+    in_flight: AtomicUsize,
+}
+
+/// What a request asks.
+#[derive(Debug, PartialEq)]
+enum Request {
+    /// A launch handing over links and files, and asking for the window.
+    Hand(Handed),
+    /// An AI app's MCP call: its token, and the JSON-RPC request as the bridge parsed it.
+    Mcp { token: String, request: serde_json::Value },
 }
 
 /// The first MailCraft's end of the socket: a thread answers launches as long as it runs.
@@ -93,6 +115,12 @@ impl Server {
         let handed = std::mem::take(&mut *self.asks.handed.lock().unwrap_or_else(PoisonError::into_inner));
         let show = self.asks.show.swap(false, Ordering::AcqRel);
         (show || !handed.is_empty()).then_some(handed)
+    }
+
+    /// The MCP calls that came since the last call, oldest first, for the window's thread to run
+    /// ([`mcp::Desk`]).
+    pub fn take_mcp(&self) -> Vec<mcp::Asked> {
+        self.asks.mcp.lock().unwrap_or_else(PoisonError::into_inner).drain(..).collect()
     }
 
     fn ask(&self, handed: Handed) {
@@ -147,14 +175,26 @@ fn request(key: &str, handed: &Handed) -> String {
     line
 }
 
-/// What a request hands over, or `None` when it isn't one with `key`: anything but one JSON
-/// object with that key, a list of strings to open and, if there is one, a list of strings to
-/// send (empty ones, and those past [`MAX_OPEN`] or [`MAX_ATTACHED`], left out).
-fn parse_request(line: &str, key: &str) -> Option<Handed> {
+/// The longest MCP token read from a request, bytes (a token is 47).
+const MAX_TOKEN: usize = 128;
+
+/// What a request asks, or `None` when it isn't one with `key`: anything but one JSON object with
+/// that key and either `open` (a list of strings to open and, if there is one, a list of strings
+/// to send: empty ones, and those past [`MAX_OPEN`] or [`MAX_ATTACHED`], left out) or `mcp` (a
+/// token string and a request object), never both.
+fn parse_request(line: &str, key: &str) -> Option<Request> {
     let value: serde_json::Value = serde_json::from_str(line.trim_end()).ok()?;
     let sent = value.get("key")?.as_str()?;
     if key.is_empty() || !keys_match(sent.as_bytes(), key.as_bytes()) {
         return None;
+    }
+    if let Some(mcp) = value.get("mcp") {
+        if value.get("open").is_some() {
+            return None;
+        }
+        let token = mcp.get("token")?.as_str().filter(|t| t.len() <= MAX_TOKEN)?;
+        let request = mcp.get("request").filter(|r| r.is_object())?;
+        return Some(Request::Mcp { token: token.to_string(), request: request.clone() });
     }
     let strings = |list: &serde_json::Value, most: usize| -> Option<Vec<String>> {
         let list = list.as_array()?.iter().map(|v| v.as_str().map(str::to_string)).collect::<Option<Vec<String>>>()?;
@@ -165,7 +205,7 @@ fn parse_request(line: &str, key: &str) -> Option<Handed> {
         Some(list) => strings(list, MAX_ATTACHED)?,
         None => Vec::new(),
     };
-    Some(Handed::new(open, attach))
+    Some(Request::Hand(Handed::new(open, attach)))
 }
 
 /// Compares a sent key with ours without stopping at the first wrong byte, so a caller timing
@@ -357,7 +397,7 @@ fn serve(listener: UnixListener, path: &Path, key: String) -> Claim {
     let answering = Server { asks: Arc::clone(&server.asks), path: path.to_path_buf(), key };
     let started = std::thread::Builder::new().name("single-instance".into()).spawn(move || {
         for stream in listener.incoming() {
-            if let Err(e) = stream.and_then(|s| answer(&s, &answering)) {
+            if let Err(e) = stream.and_then(|s| answer(s, &answering)) {
                 log::warn!("single instance: a launch's ask failed ({e})");
                 std::thread::sleep(Duration::from_millis(100));
             }
@@ -372,17 +412,25 @@ fn serve(listener: UnixListener, path: &Path, key: String) -> Claim {
     }
 }
 
-/// Read one launch's request (anything without the key is refused), note it and confirm.
-fn answer(stream: &UnixStream, server: &Server) -> std::io::Result<()> {
+/// Read one request (anything without the key is refused). A launch's is noted and confirmed; an
+/// MCP call is handed to a thread of its own (`mcp.rs`), so the next launch is accepted at once.
+fn answer(stream: UnixStream, server: &Server) -> std::io::Result<()> {
     use std::io::{BufRead, Read, Write};
     stream.set_write_timeout(Some(TIMEOUT))?;
     let mut line = String::new();
-    std::io::BufReader::new(Patient::new(stream).take(MAX_REQUEST)).read_line(&mut line)?;
-    let handed =
-        parse_request(&line, &server.key).ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "not a request with the key"))?;
-    server.ask(handed);
-    let mut writer = stream;
-    writer.write_all(OK.as_bytes())
+    std::io::BufReader::new(Patient::new(&stream).take(MAX_REQUEST)).read_line(&mut line)?;
+    match parse_request(&line, &server.key) {
+        Some(Request::Hand(handed)) => {
+            server.ask(handed);
+            let mut writer = &stream;
+            writer.write_all(OK.as_bytes())
+        }
+        Some(Request::Mcp { token, request }) => {
+            mcp::hand_to_thread(stream, &server.asks, token, request);
+            Ok(())
+        }
+        None => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "not a request with the key")),
+    }
 }
 
 #[cfg(test)]

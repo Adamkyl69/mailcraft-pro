@@ -79,6 +79,9 @@ struct App {
     frames: u32,
     /// Answering later launches on the same data folder (`single_instance.rs`).
     instance: Option<single_instance::Server>,
+    /// Runs the MCP calls local AI apps made through that socket on the session
+    /// (`single_instance/mcp.rs`).
+    mcp: single_instance::mcp::Desk,
     /// Documents macOS sent over since the last frame (`apple_events.rs`).
     #[cfg(target_os = "macos")]
     finder: fmv_macos_events::Inbox,
@@ -171,6 +174,9 @@ impl App {
             single_instance::show(ctx, self.native_wayland);
             handed.give(&mut self.app);
         }
+        // AI apps' calls run here, on the window's thread, which owns the session; the window
+        // isn't brought forward for them.
+        self.mcp.serve(self.instance.as_ref(), &mut self.app.session, ctx);
         #[cfg(target_os = "macos")]
         {
             apple_events::deliver(&self.finder, &mut self.app, ctx);
@@ -314,7 +320,16 @@ fn main() -> eframe::Result {
         say(&format!("the sample mailbox couldn't be created: {e}"));
     }
     let build_sha = option_env!("MAILCRAFT_BUILD_SHA").filter(|s| !s.trim().is_empty()).map(str::to_string);
-    let made = Made { clock: Clock::new(now, offset), portable: launch.portable.dir.is_some(), build_sha: build_sha.clone() };
+    let made = Made {
+        clock: Clock::new(now, offset),
+        portable: launch.portable.dir.is_some(),
+        build_sha: build_sha.clone(),
+        mcp_bridge: Some(desktop::start::bridge_command(
+            std::env::current_exe().ok().as_deref(),
+            launch.root.as_deref(),
+            launch.chosen || launch.portable.dir.is_some(),
+        )),
+    };
     // The data files open on a thread of their own, and the session is made there from them,
     // while the window shows how that goes (a file not closed properly is checked: minutes).
     let (progress, opened) = {
@@ -559,6 +574,7 @@ fn run(options: eframe::NativeOptions, started: Started) -> eframe::Result {
                     gpu,
                     frames: 0,
                     instance,
+                    mcp: Default::default(),
                     #[cfg(target_os = "macos")]
                     finder,
                     #[cfg(target_os = "macos")]

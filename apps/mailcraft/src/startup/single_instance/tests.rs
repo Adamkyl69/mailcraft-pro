@@ -1,6 +1,14 @@
 use super::*;
 use mailcraft_net::instance::READ_SLICE;
 
+/// What a request hands over, `None` when it isn't a launch's request with the key.
+fn hand(line: &str, key: &str) -> Option<Handed> {
+    match parse_request(line, key) {
+        Some(Request::Hand(handed)) => Some(handed),
+        _ => None,
+    }
+}
+
 /// Where a test's socket goes, in a folder of its own, its name kept short: a socket's whole
 /// path must fit its address (103 bytes on macOS, whose temporary folder alone takes about 50).
 fn socket_at(test: &str) -> PathBuf {
@@ -280,13 +288,13 @@ fn requests_are_read_strictly() {
     let open: Vec<String> = (0..100).map(|i| format!("/m/{i}.eml")).collect();
     let line = request("k3y", &Handed::opening(open.clone()));
     assert!(line.ends_with('\n') && !line.trim_end().contains('\n'), "one line");
-    assert_eq!(parse_request(&line, "k3y").map(|h| h.open.len()), Some(MAX_OPEN));
-    assert_eq!(parse_request(&line, "k3Y"), None);
-    assert_eq!(parse_request(&line, ""), None, "no key, no requests");
-    assert_eq!(parse_request(&request("", &Handed::default()), ""), None);
-    assert_eq!(parse_request("{\"key\":\"k\",\"open\":[\"\",\" \",\"a\"]}", "k"), Some(Handed::opening(vec!["a".to_string()])));
+    assert_eq!(hand(&line, "k3y").map(|h| h.open.len()), Some(MAX_OPEN));
+    assert_eq!(hand(&line, "k3Y"), None);
+    assert_eq!(hand(&line, ""), None, "no key, no requests");
+    assert_eq!(hand(&request("", &Handed::default()), ""), None);
+    assert_eq!(hand("{\"key\":\"k\",\"open\":[\"\",\" \",\"a\"]}", "k"), Some(Handed::opening(vec!["a".to_string()])));
     for junk in ["", "{}", "[]", "null", "{\"key\":\"k\"}", "{\"key\":5,\"open\":[]}", "\u{0}\u{ff}"] {
-        assert_eq!(parse_request(junk, "k"), None, "{junk:?}");
+        assert_eq!(hand(junk, "k"), None, "{junk:?}");
     }
     assert!(keys_match(b"abc", b"abc") && !keys_match(b"abc", b"abd") && !keys_match(b"abc", b"ab"));
 }
@@ -315,15 +323,302 @@ fn a_launch_hands_over_its_files_to_send() {
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 
     let many: Vec<String> = (0..500).map(|i| format!("/u/{i}.pdf")).collect();
-    let read = parse_request(&request("k", &Handed { open: Vec::new(), attach: vec![many] }), "k").unwrap();
+    let read = hand(&request("k", &Handed { open: Vec::new(), attach: vec![many] }), "k").unwrap();
     assert_eq!(read.attach.iter().map(Vec::len).collect::<Vec<_>>(), [MAX_ATTACHED]);
-    assert_eq!(parse_request("{\"key\":\"k\",\"open\":[\"a\"]}", "k"), Some(Handed::opening(vec!["a".to_string()])), "before 0.39");
-    assert_eq!(parse_request("{\"key\":\"k\",\"open\":[],\"attach\":[\"\",\" \"]}", "k"), Some(Handed::default()), "nothing to send");
+    assert_eq!(hand("{\"key\":\"k\",\"open\":[\"a\"]}", "k"), Some(Handed::opening(vec!["a".to_string()])), "before 0.39");
+    assert_eq!(hand("{\"key\":\"k\",\"open\":[],\"attach\":[\"\",\" \"]}", "k"), Some(Handed::default()), "nothing to send");
     for junk in [
         "{\"key\":\"k\",\"open\":[],\"attach\":\"/u/a.pdf\"}",
         "{\"key\":\"k\",\"open\":[],\"attach\":[1]}",
         "{\"key\":\"k\",\"attach\":[\"/u/a.pdf\"]}",
     ] {
-        assert_eq!(parse_request(junk, "k"), None, "{junk:?}");
+        assert_eq!(hand(junk, "k"), None, "{junk:?}");
+    }
+}
+
+// ---- MCP calls (`mcp.rs`) ----
+
+mod mcp_calls {
+    use std::io::{BufRead, Write};
+    use std::sync::mpsc::sync_channel;
+
+    use mailcraft_engine::mcp::protocol::{INTERNAL_ERROR, SLOW_DOWN, TOKEN_REFUSED};
+    use mailcraft_engine::mcp::tokens::make_token;
+    use mailcraft_engine::mcp::{MAX_LINE, Permission};
+    use mailcraft_engine::model::dates::Clock;
+    use mailcraft_engine::model::{Event, Folder, FolderRole, SyncStatus};
+    use mailcraft_engine::{McpOutcome, Session};
+    use serde_json::{Value, json};
+
+    use super::super::mcp::{Asked, Desk, MAX_IN_FLIGHT, serve_one};
+    use super::*;
+
+    const NOW: i64 = 1_700_000_000;
+
+    fn token() -> String {
+        make_token(&[7u8; 32]).unwrap()
+    }
+
+    /// The sample mailbox in a folder of the test's own, with [`token`] accepted for reading.
+    fn session(test: &str) -> Session {
+        let dir = std::env::temp_dir().join(format!("mci-{:x}-{test}-data", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = mailcraft_engine::store::Store::open(&dir).unwrap();
+        mailcraft_engine::sample::seed_if_empty_at(&store, NOW, 0).unwrap();
+        let mut s = Session::open(Some(store), Clock::new(NOW, 0));
+        s.mcp_seed_token(&token(), &[Permission::Read, Permission::Organize]);
+        s
+    }
+
+    fn rpc(id: i64, method: &str, params: Value) -> Value {
+        json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params})
+    }
+
+    fn mcp_line(key: &str, token: &str, request: &Value) -> String {
+        format!("{}\n", json!({"key": key, "mcp": {"token": token, "request": request}}))
+    }
+
+    /// One request line sent on a new connection, and the line that comes back (`None`: the
+    /// connection closed without one).
+    fn exchange(path: &Path, line: &str) -> Option<String> {
+        let mut stream = UnixStream::connect(path).unwrap();
+        stream.write_all(line.as_bytes()).unwrap();
+        let mut reply = String::new();
+        let read = std::io::BufReader::new(Patient::within(&stream, Duration::from_secs(20))).read_line(&mut reply);
+        (read.unwrap() > 0).then_some(reply)
+    }
+
+    /// [`exchange`] on a thread while this one plays the window: `serve` is run until the answer is in.
+    fn answered(path: &Path, line: String, mut serve: impl FnMut()) -> Option<String> {
+        let path = path.to_path_buf();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || tx.send(exchange(&path, &line)).unwrap());
+        let until = std::time::Instant::now() + Duration::from_secs(20);
+        loop {
+            serve();
+            if let Ok(got) = rx.try_recv() {
+                return got;
+            }
+            assert!(std::time::Instant::now() < until, "no answer");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    fn json_of(line: Option<String>) -> Value {
+        serde_json::from_str(line.expect("an answer").trim_end()).unwrap()
+    }
+
+    /// An MCP request is read as one only with the key, a token string and a request object, and
+    /// never together with a launch's `open`.
+    #[test]
+    fn only_a_request_with_the_key_and_a_request_object_is_an_mcp_call() {
+        let ping = rpc(1, "ping", json!({}));
+        let good = mcp_line("k", "mcp_x", &ping);
+        assert_eq!(parse_request(&good, "k"), Some(Request::Mcp { token: "mcp_x".into(), request: ping.clone() }));
+        for (what, line) in [
+            ("no key", json!({"mcp": {"token": "t", "request": ping}}).to_string()),
+            ("the wrong key", mcp_line("other", "t", &ping)),
+            ("open and mcp", json!({"key": "k", "open": [], "mcp": {"token": "t", "request": ping}}).to_string()),
+            ("no token", json!({"key": "k", "mcp": {"request": ping}}).to_string()),
+            ("a token that isn't text", json!({"key": "k", "mcp": {"token": 5, "request": ping}}).to_string()),
+            ("a long token", mcp_line("k", &"t".repeat(129), &ping)),
+            ("no request", json!({"key": "k", "mcp": {"token": "t"}}).to_string()),
+            ("a batch", mcp_line("k", "t", &json!([ping]))),
+            ("a request that isn't an object", mcp_line("k", "t", &json!("ping"))),
+            ("an mcp that isn't an object", json!({"key": "k", "mcp": "x"}).to_string()),
+        ] {
+            assert_eq!(parse_request(&line, "k"), None, "{what}");
+        }
+        assert_eq!(parse_request(&good, ""), None, "no key, no requests");
+    }
+
+    /// The window answers an AI app's call through the real socket: a notification with an empty
+    /// line, a bad token with `-32001`, a request the size the bridge reads at most, and a read of the
+    /// sample mailbox; the key is the launches' own.
+    #[test]
+    fn a_call_is_answered_by_the_window_over_the_socket() {
+        let path = socket("mcp");
+        let Claim::Primary(first) = claim_at(&path, &Handed::default()) else { panic!("the first launch listens") };
+        let key = read_key(&path).unwrap();
+        let (mut s, mut desk, ctx) = (session("mcp"), Desk::default(), egui::Context::default());
+        let mut over = |request: &Value, token: &str| answered(&path, mcp_line(&key, token, request), || desk.serve(Some(&first), &mut s, &ctx));
+        let init = json_of(over(&rpc(1, "initialize", json!({"protocolVersion": "2025-06-18"})), &token()));
+        assert_eq!((init["id"].clone(), init["result"]["serverInfo"]["name"].as_str()), (json!(1), Some("mailcraft")));
+        let note = over(&json!({"jsonrpc": "2.0", "method": "notifications/initialized"}), &token());
+        assert_eq!(note.as_deref(), Some("\n"), "a notification's answer is an empty line");
+        let refused = json_of(over(&rpc(2, "tools/list", json!({})), &make_token(&[1u8; 32]).unwrap()));
+        assert_eq!((refused["id"].clone(), refused["error"]["code"].clone()), (json!(2), json!(TOKEN_REFUSED)));
+        let accounts = json_of(over(&rpc(3, "tools/call", json!({"name": "mail_accounts", "arguments": {}})), &token()));
+        assert_eq!(accounts["result"]["structuredContent"]["accounts"][0]["account"], json!("sample"), "{accounts}");
+        let listed = json_of(over(
+            &rpc(4, "tools/call", json!({"name": "mail_list", "arguments": {"account": "sample", "folder": "INBOX", "limit": 2}})),
+            &token(),
+        ));
+        assert_eq!(listed["result"]["structuredContent"]["messages"].as_array().map(Vec::len), Some(2), "{listed}");
+        // A request of the size the bridge reads at most (the wrapper's own bytes are allowed for).
+        let pad = "x".repeat(MAX_LINE - 100);
+        let big = json_of(over(&rpc(5, "ping", json!({"pad": pad})), &token()));
+        assert_eq!(big["result"], json!({}));
+        first.close();
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// A request without the key, with `open` and `mcp` together, with neither, or that isn't a
+    /// request is closed on with no reply (as a launch's always was); the next call is answered.
+    #[test]
+    fn a_call_without_the_key_is_closed_on() {
+        let path = socket("mcpkey");
+        let Claim::Primary(first) = claim_at(&path, &Handed::default()) else { panic!("the first launch listens") };
+        let key = read_key(&path).unwrap();
+        let ping = rpc(1, "ping", json!({}));
+        let (mut s, mut desk, ctx) = (session("mcpkey"), Desk::default(), egui::Context::default());
+        for line in [
+            mcp_line("not-the-key", &token(), &ping),
+            json!({"mcp": {"token": token(), "request": ping}}).to_string() + "\n",
+            json!({"key": key, "open": [], "mcp": {"token": token(), "request": ping}}).to_string() + "\n",
+            json!({"key": key}).to_string() + "\n",
+            json!({"key": key, "mcp": {"token": token(), "request": [ping]}}).to_string() + "\n",
+            "not json\n".to_string(),
+        ] {
+            assert_eq!(answered(&path, line.clone(), || desk.serve(Some(&first), &mut s, &ctx)), None, "{line}");
+        }
+        assert_eq!(s.mcp.settings.tokens[0].last_used, None, "none of them reached the session");
+        let ok = json_of(answered(&path, mcp_line(&key, &token(), &ping), || desk.serve(Some(&first), &mut s, &ctx)));
+        assert_eq!(ok["result"], json!({}));
+        first.close();
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// Four calls waiting for the window are the most answered at once: the fifth is told
+    /// MailCraft is busy (`-32002`), a launch is still shown at once (no thread of the socket is
+    /// kept by a call), and the four, let go, say MailCraft is closing.
+    #[test]
+    fn a_fifth_call_is_told_to_slow_down_and_a_launch_isnt_kept_waiting() {
+        let path = socket("mcpfive");
+        let Claim::Primary(first) = claim_at(&path, &Handed::default()) else { panic!("the first launch listens") };
+        let key = read_key(&path).unwrap();
+        let line = mcp_line(&key, &token(), &rpc(9, "ping", json!({})));
+        let mut waiting: Vec<UnixStream> = (0..MAX_IN_FLIGHT)
+            .map(|_| {
+                let mut c = UnixStream::connect(&path).unwrap();
+                c.write_all(line.as_bytes()).unwrap();
+                c
+            })
+            .collect();
+        let until = std::time::Instant::now() + Duration::from_secs(10);
+        while first.asks.mcp.lock().unwrap().len() < MAX_IN_FLIGHT {
+            assert!(std::time::Instant::now() < until, "the four calls are queued");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let busy = json_of(exchange(&path, &line));
+        assert_eq!((busy["id"].clone(), busy["error"]["code"].clone()), (json!(9), json!(SLOW_DOWN)), "{busy}");
+        // A launch during the calls: shown within the time a launch waits.
+        let started = std::time::Instant::now();
+        assert!(matches!(claim_at(&path, &Handed::default()), Claim::Shown));
+        assert!(started.elapsed() < TIMEOUT, "{:?}", started.elapsed());
+        // The window never takes them: dropped, the four threads answer and end.
+        drop(first.take_mcp());
+        for c in &mut waiting {
+            let mut reply = String::new();
+            std::io::BufReader::new(Patient::within(c, Duration::from_secs(10))).read_line(&mut reply).unwrap();
+            let v: Value = serde_json::from_str(reply.trim_end()).unwrap();
+            assert_eq!(v["error"]["code"], json!(INTERNAL_ERROR), "{reply}");
+            assert!(v["error"]["message"].as_str().unwrap().contains("closing"), "{reply}");
+        }
+        let until = std::time::Instant::now() + Duration::from_secs(10);
+        while first.asks.in_flight.load(Ordering::Acquire) != 0 {
+            assert!(std::time::Instant::now() < until, "the count goes down as the threads end");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        first.close();
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// A server of its own for the window-side tests: no socket, only the queue.
+    fn server() -> Server {
+        Server { asks: Arc::default(), path: PathBuf::new(), key: "k".into() }
+    }
+
+    fn queue(server: &Server, request: Value, wait: Duration) -> std::sync::mpsc::Receiver<String> {
+        let (reply, rx) = sync_channel(1);
+        server.asks.mcp.lock().unwrap().push_back(Asked { token: token(), request, reply, deadline: std::time::Instant::now() + wait });
+        rx
+    }
+
+    /// The window never takes the call (or takes it too late): the connection's thread answers
+    /// "didn't answer in time" when its wait is over, and the window that finds the call past its
+    /// deadline drops it without running it. A call whose connection has gone is still run, and
+    /// its answer is let go without a word or a panic.
+    #[test]
+    fn a_call_the_window_is_late_for_is_dropped_and_one_nobody_waits_for_is_passed_over() {
+        let path = socket("mcpwait");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let listener = UnixListener::bind(&path).unwrap();
+        let asks: Arc<Asks> = Arc::default();
+        let thread_asks = Arc::clone(&asks);
+        let client = UnixStream::connect(&path).unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        let wait = Duration::from_millis(200);
+        let serving = std::thread::spawn(move || serve_one(stream, &thread_asks, token(), rpc(5, "ping", json!({})), wait));
+        let mut reply = String::new();
+        std::io::BufReader::new(Patient::within(&client, Duration::from_secs(10))).read_line(&mut reply).unwrap();
+        serving.join().unwrap();
+        let v: Value = serde_json::from_str(reply.trim_end()).unwrap();
+        assert_eq!((v["id"].clone(), v["error"]["code"].clone()), (json!(5), json!(INTERNAL_ERROR)), "{reply}");
+        assert!(v["error"]["message"].as_str().unwrap().contains("in time"), "{reply}");
+        // The window finds the call (past its deadline) and doesn't run it.
+        let server = Server { asks: Arc::clone(&asks), path: PathBuf::new(), key: "k".into() };
+        let (mut s, mut desk, ctx) = (session("mcpwait"), Desk::default(), egui::Context::default());
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(server.asks.mcp.lock().unwrap().is_empty(), "taken");
+        assert_eq!(s.mcp.settings.tokens[0].last_used, None, "not run");
+        // The receiver gone before the answer: run, and the answer dropped.
+        let gone = queue(&server, rpc(6, "ping", json!({})), Duration::from_secs(60));
+        drop(gone);
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(s.mcp.settings.tokens[0].last_used.is_some(), "run");
+        drop((client, listener));
+        let _ = std::fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    /// A call that waits for the network (`mail_sync` on an account with a server) is kept by
+    /// the window until the session has its answer, and one the connection gave up on is let go
+    /// of, so the token can call again.
+    #[test]
+    fn a_call_that_waits_for_the_network_is_answered_later_or_let_go() {
+        let dir = std::env::temp_dir().join(format!("mci-{:x}-mcplater-data", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut s = Session::open(Some(mailcraft_engine::store::Store::open(&dir).unwrap()), Clock::new(NOW, 0));
+        let id = s.run("account.add", &json!({"email": "zoe@example.org", "password": "pw"})).unwrap()["account"].as_str().unwrap().to_string();
+        let folder = Folder { account: id.clone(), path: "INBOX".into(), role: FolderRole::Inbox, selectable: true, ..Default::default() };
+        s.apply(Event::Folders { account: id.clone(), folders: vec![folder] });
+        s.take_jobs();
+        s.mcp_seed_token(&token(), &[Permission::Read, Permission::Organize]);
+        let (server, mut desk, ctx) = (server(), Desk::default(), egui::Context::default());
+        let sync = rpc(1, "tools/call", json!({"name": "mail_sync", "arguments": {}}));
+        let rx = queue(&server, sync.clone(), Duration::from_secs(60));
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(rx.try_recv().is_err(), "not answered yet");
+        assert!(s.mcp_waiting());
+        // Taken as a frame goes by, finished when the account says so.
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(rx.try_recv().is_err());
+        s.apply(Event::Status { account: id.clone(), status: SyncStatus::Online { at: NOW } });
+        desk.serve(Some(&server), &mut s, &ctx);
+        let done: Value = serde_json::from_str(&rx.try_recv().expect("answered")).unwrap();
+        assert_eq!(done["result"]["structuredContent"]["done"], json!([id]), "{done}");
+        assert!(!s.mcp_waiting());
+        // A connection that gave up: its deadline passes, the window lets go of the call, and the
+        // token (one call at a time) isn't kept busy.
+        let rx = queue(&server, sync.clone(), Duration::from_millis(300));
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(s.mcp_waiting());
+        std::thread::sleep(Duration::from_millis(400));
+        desk.serve(Some(&server), &mut s, &ctx);
+        assert!(!s.mcp_waiting(), "let go");
+        assert!(rx.try_recv().is_err(), "nothing was sent to a connection that had gone");
+        let again = s.mcp_handle(&token(), &sync, 5_000_000_000_000);
+        assert!(matches!(again, McpOutcome::Later(_)), "not told to slow down: {again:?}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -96,7 +96,8 @@ pub fn socket_name(data: &Path, screen: &str) -> String {
 /// window. A read made again sees the close at once.
 pub const READ_SLICE: Duration = Duration::from_millis(50);
 
-/// Reads `stream` until `TIMEOUT` from when it's made, [`READ_SLICE`] at a time.
+/// Reads `stream` until `TIMEOUT` from when it's made (or the wait given to [`Patient::within`]),
+/// [`READ_SLICE`] at a time.
 pub struct Patient<'a> {
     pub stream: &'a UnixStream,
     pub until: std::time::Instant,
@@ -104,7 +105,13 @@ pub struct Patient<'a> {
 
 impl<'a> Patient<'a> {
     pub fn new(stream: &'a UnixStream) -> Self {
-        Patient { stream, until: std::time::Instant::now() + TIMEOUT }
+        Patient::within(stream, TIMEOUT)
+    }
+
+    /// Reads `stream` for `wait` from now, not [`TIMEOUT`] (the bridge waits for the window's
+    /// answer, which can take minutes).
+    pub fn within(stream: &'a UnixStream, wait: Duration) -> Self {
+        Patient { stream, until: std::time::Instant::now() + wait }
     }
 
     /// What can be read without waiting: never a wait with no timeout set.

@@ -1,10 +1,12 @@
 //! The CLI's commands, one function each (`run()` in `main.rs` picks one); `send` is in
-//! `commands/send.rs`.
+//! `commands/send.rs`, and `mcp`, the bridge for local AI apps, in `commands/mcp.rs`.
 
 use super::*;
 
+mod mcp;
 mod send;
 
+pub(crate) use mcp::bridge_main;
 pub(crate) use send::send;
 
 /// An engine command, its error as the CLI says it.

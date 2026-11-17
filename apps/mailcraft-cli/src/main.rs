@@ -263,6 +263,11 @@ fn run() -> Result<(), String> {
         outln!("{}", include_str!("help.txt"));
         return Ok(());
     }
+    // The bridge for local AI apps talks to the running MailCraft, which holds the data files:
+    // before the store is opened, as the help is.
+    if args.positional(0).as_deref() == Some("mcp") {
+        return commands::bridge_main(&args);
+    }
     let root =
         args.opt("--data").map(std::path::PathBuf::from).or_else(mailcraft_engine::store::default_root).ok_or("no data folder: pass --data DIR")?;
     // The same data files as the app: in Documents\MailCraft Files (or where they were moved),
@@ -456,7 +461,7 @@ mod tests {
     /// Every option the CLI reads is one `check` knows, with or without a value.
     #[test]
     fn every_option_read_is_known() {
-        for src in [include_str!("main.rs"), include_str!("commands.rs"), include_str!("commands/send.rs")] {
+        for src in [include_str!("main.rs"), include_str!("commands.rs"), include_str!("commands/mcp.rs"), include_str!("commands/send.rs")] {
             for (i, _) in src.match_indices("opt(\"--").chain(src.match_indices("number(\"--")).chain(src.match_indices("flag(\"--")) {
                 let name: String = src[i..].chars().skip_while(|c| *c != '-').take_while(|c| *c == '-' || c.is_ascii_alphanumeric()).collect();
                 assert!(is_known(&name), "{name} isn't in OPTIONS or SWITCHES");

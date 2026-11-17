@@ -21,6 +21,8 @@ mailcraft-cli [--data DIR] <command>
                                  that looks like another, many people shown each other)
        [--from ID|ADDRESS]       From changed to that account, or to one of an account's
                                  addresses (`run account.setAddress`): its signature follows
+  mcp                            relay MCP (JSON-RPC on stdin/stdout) to the running MailCraft;
+                                 the token in MAILCRAFT_MCP_TOKEN
   commands                       every engine command, as JSON
   run ID [JSON]                  run an engine command against the cache (its changes
                                  to mail go to the server with the next `sync`;

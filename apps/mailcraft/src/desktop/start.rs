@@ -13,10 +13,33 @@ pub(crate) struct Made {
     pub(crate) portable: bool,
     /// A release build's commit, so File › About can tell its test build from a later one.
     pub(crate) build_sha: Option<String>,
+    /// How AI apps start the `mailcraft-cli mcp` bridge, for File › Options › Connected apps.
+    pub(crate) mcp_bridge: Option<mailcraft_engine::mcp::BridgeCommand>,
+}
+
+/// The system's secure random bytes, for MCP tokens and the authenticator's secret.
+fn random(n: usize) -> Option<Vec<u8>> {
+    mailcraft_net::oauth::random_bytes(n).ok()
+}
+
+/// How an AI app starts the bridge: `mailcraft-cli` beside this program when it's there, else
+/// by name (found on the path), with `--data` when this MailCraft's data folder isn't the
+/// default one (`pass_data`: it was chosen at start, or MailCraft is portable). Shown on screen
+/// only, never written to the log or a file.
+pub(crate) fn bridge_command(exe: Option<&std::path::Path>, root: Option<&std::path::Path>, pass_data: bool) -> mailcraft_engine::mcp::BridgeCommand {
+    let name = if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" };
+    let beside = exe.and_then(std::path::Path::parent).map(|dir| dir.join(name)).filter(|p| p.is_file());
+    let program = beside.map_or_else(|| "mailcraft-cli".to_string(), |p| p.to_string_lossy().into_owned());
+    let mut args = vec!["mcp".to_string()];
+    if let Some(root) = root.filter(|_| pass_data) {
+        args.push("--data".into());
+        args.push(root.to_string_lossy().into_owned());
+    }
+    mailcraft_engine::mcp::BridgeCommand { program, args }
 }
 
 /// The session over `store`, as MailCraft opens with it (made on the `data-open` thread).
-pub(crate) fn session(store: Option<Store>, Made { clock, portable, build_sha }: Made) -> Session {
+pub(crate) fn session(store: Option<Store>, Made { clock, portable, build_sha, mcp_bridge }: Made) -> Session {
     let mut session = Session::open(store, clock);
     session.oauth_available = mailcraft_net::oauth::available();
     // S/MIME signers are trusted through the roots this computer trusts.
@@ -26,6 +49,14 @@ pub(crate) fn session(store: Option<Store>, Made { clock, portable, build_sha }:
     session.build_sha = build_sha;
     // A build of a release checks for releases only (File › About too).
     session.updates_stable_only = crate::self_update::stable();
+    // What connected AI apps (MCP) need from this computer: secure random bytes, this run's log,
+    // and how to start the bridge; and the approval secret, read from the keychain.
+    session.mcp.random = Some(random);
+    session.mcp.log_source = Some(crate::startup::logfile::recent);
+    session.mcp.bridge = mcp_bridge;
+    if session.mcp_wants_secret() {
+        session.push_job(mailcraft_engine::model::Job::ReadAppSecret { what: mailcraft_engine::mcp::APPROVAL_SECRET.to_string() });
+    }
     session
 }
 
@@ -87,6 +118,41 @@ mod tests {
     fn app() -> MailApp {
         let session = Session::open(None, Clock::new(1_700_000_000, 0));
         MailApp::new(session, Box::new(mailcraft_ui_egui::NullBackend), Box::new(mailcraft_ui_egui::NullServices(1_700_000_000)))
+    }
+
+    /// The bridge is started as `mailcraft-cli` beside the app when it's there, else by name;
+    /// `--data` follows only when the data folder isn't the default one.
+    #[test]
+    fn the_bridge_command_is_worked_out_for_the_snippets() {
+        let dir = std::env::temp_dir().join(format!("mailcraft-start-{}-bridge", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("mailcraft");
+        let root = dir.join("data");
+        let by_name = |args: &[&str]| mailcraft_engine::mcp::BridgeCommand {
+            program: "mailcraft-cli".into(),
+            args: args.iter().map(|a| a.to_string()).collect(),
+        };
+        assert_eq!(bridge_command(Some(&exe), Some(&root), false), by_name(&["mcp"]), "none beside it: found by name");
+        assert_eq!(bridge_command(None, None, true), by_name(&["mcp"]), "no folder to name");
+        let cli = dir.join(if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" });
+        std::fs::write(&cli, b"").unwrap();
+        let with = bridge_command(Some(&exe), Some(&root), true);
+        assert_eq!(with.program, cli.to_string_lossy());
+        assert_eq!(with.args, ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()]);
+        assert_eq!(bridge_command(Some(&exe), Some(&root), false).args, ["mcp"], "the default folder needs none");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The session carries what MCP needs of this computer: random bytes, the log, the bridge.
+    #[test]
+    fn the_session_is_given_what_mcp_needs_of_the_computer() {
+        let bridge = mailcraft_engine::mcp::BridgeCommand { program: "mailcraft-cli".into(), args: vec!["mcp".into()] };
+        let made = Made { clock: Clock::new(1_700_000_000, 0), portable: false, build_sha: None, mcp_bridge: Some(bridge.clone()) };
+        let s = session(None, made);
+        assert_eq!(s.mcp.bridge, Some(bridge));
+        assert_eq!(s.mcp.random.and_then(|r| r(20)).map(|b| b.len()), Some(20));
+        assert!(s.mcp.log_source.is_some());
     }
 
     fn cmd(app: &mut MailApp, c: &str) {

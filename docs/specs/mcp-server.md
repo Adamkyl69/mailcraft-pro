@@ -1,6 +1,6 @@
 # Design: MailCraft as a local MCP server
 
-Status: **draft for the owner's approval.** No code is written until it's approved.
+Status: **approved by the owner**; being built.
 
 ## Goal
 
@@ -166,4 +166,5 @@ Each commit passes `cargo xtask ci`.
 
 ## Owner decisions taken
 
-Local clients only; stdio, no port; authenticator code plus rules; the QR crate is added.
+Local clients only; stdio, no port; authenticator code plus rules; the QR crate is added;
+the *no code needed* rules for replies stay on by default.

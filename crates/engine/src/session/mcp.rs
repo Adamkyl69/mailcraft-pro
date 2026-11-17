@@ -117,6 +117,11 @@ pub struct McpState {
     memory_only: bool,
     /// The last calls of each token (by token id).
     rates: HashMap<String, RateWindow>,
+    /// The calls of every unknown or malformed token together, for the same limit.
+    bad_rate: RateWindow,
+    /// When a refused unknown token was last logged, and how many were refused since.
+    bad_logged: Option<i64>,
+    bad_skipped: u32,
     /// Token ids with a call still waiting for the network.
     busy: HashSet<String>,
     /// Calls waiting for the network.
@@ -243,7 +248,15 @@ impl Session {
         // A notification has no answer, whoever sent it.
         let Some(id) = req.id.clone() else { return McpOutcome::Reply(String::new()) };
         let Some(at) = self.mcp_token_at(token) else {
-            log::warn!(target: "mailcraft::mcp", "a call was refused: unknown token, or MCP is off");
+            if !self.mcp.bad_rate.allow(now_ms) {
+                self.mcp.bad_skipped = self.mcp.bad_skipped.saturating_add(1);
+                return McpOutcome::Reply(protocol::error(
+                    Some(&id),
+                    protocol::SLOW_DOWN,
+                    "slow down: too many calls with a token that isn't accepted",
+                ));
+            }
+            self.log_bad_token(now_ms);
             return McpOutcome::Reply(protocol::error(
                 Some(&id),
                 protocol::TOKEN_REFUSED,
@@ -282,6 +295,19 @@ impl Session {
             "tools/call" => self.mcp_call(&req.params, id, (&token_id, &name, &perms), structured, now_ms),
             _ => McpOutcome::Reply(protocol::error(Some(&id), protocol::METHOD_NOT_FOUND, "no such method")),
         }
+    }
+
+    /// Log a refused unknown token: one WARN a second, which says how many were refused since,
+    /// so a flood of them can't push the real warnings out of the log.
+    fn log_bad_token(&mut self, now_ms: i64) {
+        let m = &mut self.mcp;
+        if m.bad_logged.is_some_and(|t| now_ms.saturating_sub(t) < 1000 && t <= now_ms) {
+            m.bad_skipped = m.bad_skipped.saturating_add(1);
+            return;
+        }
+        m.bad_logged = Some(now_ms);
+        let more = std::mem::take(&mut m.bad_skipped);
+        log::warn!(target: "mailcraft::mcp", "a call was refused: unknown token, or MCP is off ({more} more refused)");
     }
 
     /// Whether `token_id` still has a token, with MCP on, that may use `tool`.

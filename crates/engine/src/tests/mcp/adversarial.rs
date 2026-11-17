@@ -189,6 +189,22 @@ fn a_waiting_call_loses_its_token(how: &str) {
     assert!(!s.mcp_waiting());
 }
 
+/// A flood of calls with bad tokens logs a line a second and doesn't push earlier warnings out.
+#[test]
+fn a_flood_of_bad_tokens_is_coalesced_in_the_log() {
+    let _ = mcp_logged();
+    let (mut s, _t) = mcp_session("mcp-adv-flood", &ALL);
+    let before = mcp_logged().len();
+    for i in 0..1000 {
+        let _ = call_at(&mut s, "mcp_wrongwrongwrongwrongwrongwrongwrongwrongwro", i);
+    }
+    assert!(mcp_logged().len() - before <= 2, "{:?}", mcp_logged());
+}
+
+fn call_at(s: &mut Session, token: &str, now_ms: i64) -> McpOutcome {
+    s.mcp_handle(token, &request(1, "ping", json!({})), 20_000 + now_ms)
+}
+
 fn raw_of_report(key: &MessageKey) -> Vec<u8> {
     format!("From: Ann <ann@example.com>\r\nTo: zoe@example.org\r\nSubject: Report {}\r\n\r\nThe figures.\r\n", key.uid).into_bytes()
 }

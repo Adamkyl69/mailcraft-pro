@@ -432,6 +432,28 @@ mod mcp_calls {
         assert_eq!(parse_request(&good, ""), None, "no key, no requests");
     }
 
+    /// A line nested far deeper than the JSON reader allows is no request (no crash, no stack to
+    /// overflow); one the reader allows but MCP doesn't is read, and the session refuses it.
+    #[test]
+    fn deeply_nested_lines_are_no_request_or_are_refused_by_the_session() {
+        let deep = |n: usize| format!("{{\"key\":\"k\",\"mcp\":{{\"token\":\"t\",\"request\":{}1{}}}}}\n", "[".repeat(n), "]".repeat(n));
+        for n in [200, 5_000, 200_000] {
+            assert_eq!(parse_request(&deep(n), "k"), None, "{n} deep");
+        }
+        // An object nested 100 deep reaches the session, which answers -32600 and runs nothing.
+        let mut nested = json!(1);
+        for _ in 0..100 {
+            nested = json!({"a": nested});
+        }
+        let request = json!({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "mail_accounts", "arguments": nested}});
+        let line = mcp_line("k", &token(), &request);
+        let Some(Request::Mcp { token: t, request }) = parse_request(&line, "k") else { panic!("a request the JSON reader allows") };
+        let mut s = session("mcpdeep");
+        let McpOutcome::Reply(answer) = s.mcp_handle(&t, &request, 5_000_000_000_000) else { panic!("answered at once") };
+        let v: Value = serde_json::from_str(&answer).unwrap();
+        assert_eq!((v["id"].clone(), v["error"]["code"].clone()), (json!(4), json!(-32600)), "{v}");
+    }
+
     /// The window answers an AI app's call through the real socket: a notification with an empty
     /// line, a bad token with `-32001`, a request the size the bridge reads at most, and a read of the
     /// sample mailbox; the key is the launches' own.

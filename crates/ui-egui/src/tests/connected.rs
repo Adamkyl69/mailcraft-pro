@@ -169,3 +169,36 @@ fn the_qr_code_is_dark_squares_on_white_in_both_themes() {
         assert!(black > 100, "the modules are drawn: {black}");
     }
 }
+
+/// Edge case 41: twenty apps, each with the longest name, drawn at the narrowest window MailCraft allows (760 wide): every
+/// piece of text ends inside the window, and the card isn't a reason for a crash.
+#[test]
+fn edge_case_41_twenty_long_names_fit_the_card_at_narrow_widths() {
+    let (mut a, _) = app("connected-narrow");
+    let ctx = egui::Context::default();
+    wired(&mut a);
+    for i in 0..20 {
+        let name: String = format!("{i:02} ").chars().chain("W".repeat(61).chars()).collect();
+        owner(&mut a, "mcp.createToken", json!({"name": name, "permissions": ["read", "organize", "send"]}));
+    }
+    owner(&mut a, "mcp.dismissToken", json!({}));
+    options(&ctx, &mut a);
+    for width in [1280.0_f32, 900.0, crate::MIN_WINDOW_SIZE.x] {
+        for dark in [Some(false), Some(true)] {
+            a.ui.dark = dark;
+            for _ in 0..2 {
+                windows::layout::dress(&mut a);
+                let input =
+                    RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 800.0))), ..Default::default() };
+                let mut out = ctx.run_ui(input, |ui| a.ui(ui));
+                out.textures_delta.clear();
+                for clipped in &out.shapes {
+                    if let egui::Shape::Text(t) = &clipped.shape {
+                        let right = t.pos.x + t.galley.rect.max.x;
+                        assert!(right <= width + 1.0, "text reaches {right} in a window {width} wide: {:?}", t.galley.text());
+                    }
+                }
+            }
+        }
+    }
+}

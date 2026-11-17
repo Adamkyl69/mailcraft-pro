@@ -6,19 +6,19 @@ use super::*;
 use crate::mcp::approval::{self, ApprovalRecord, ApprovalState};
 
 /// RFC 6238's secret: codes for it are worked out in the tests.
-const SECRET: &[u8] = b"12345678901234567890";
+pub(super) const SECRET: &[u8] = b"12345678901234567890";
 
-fn activate(s: &mut Session) {
+pub(super) fn activate(s: &mut Session) {
     s.mcp.settings.approval = ApprovalRecord { state: ApprovalState::Active, ..Default::default() };
     s.mcp.secret = Some(SECRET.to_vec());
 }
 
 /// The code for the step of `now_ms`.
-fn code_for(now_ms: i64) -> String {
+pub(super) fn code_for(now_ms: i64) -> String {
     format!("{:06}", approval::code_at(SECRET, approval::step(now_ms.div_euclid(1000))).unwrap())
 }
 
-fn summary(folder: &str, uid: u32, id: &str, from: (&str, &str), to: &[(&str, &str)], subject: &str) -> Summary {
+pub(super) fn summary(folder: &str, uid: u32, id: &str, from: (&str, &str), to: &[(&str, &str)], subject: &str) -> Summary {
     Summary {
         key: MessageKey { account: "sample".into(), folder: folder.into(), validity: 1, uid },
         message_id: id.into(),
@@ -31,25 +31,25 @@ fn summary(folder: &str, uid: u32, id: &str, from: (&str, &str), to: &[(&str, &s
     }
 }
 
-fn raw_from(id: &str, from: &str, subject: &str) -> Vec<u8> {
+pub(super) fn raw_from(id: &str, from: &str, subject: &str) -> Vec<u8> {
     format!("From: {from}\r\nTo: riley@studio.example\r\nSubject: {subject}\r\nMessage-ID: <{id}>\r\n\r\nPlease answer.\r\n").into_bytes()
 }
 
 /// The sample, with the owner having answered the print shop's proof (in Sent, in its thread), a
 /// second message from the print shop that nothing of the owner's answers, and a message in the
 /// Inbox that says it's from the owner to a stranger.
-struct Fixture {
-    s: Session,
-    t: String,
+pub(super) struct Fixture {
+    pub(super) s: Session,
+    pub(super) t: String,
     /// The print shop's message the owner has written in the thread of.
-    thread: MessageKey,
+    pub(super) thread: MessageKey,
     /// The print shop's other message.
-    other: MessageKey,
+    pub(super) other: MessageKey,
     /// Zoe's, in the Inbox.
-    zoe: MessageKey,
+    pub(super) zoe: MessageKey,
 }
 
-fn fixture(name: &str) -> Fixture {
+pub(super) fn fixture(name: &str) -> Fixture {
     let store = temp(name);
     assert!(sample::seed_if_empty(&store, NOW).unwrap());
     let mut inbox = store.load_folder("sample", "INBOX").unwrap();
@@ -91,11 +91,11 @@ fn fixture(name: &str) -> Fixture {
 }
 
 /// What `mail_send` answered, as the result's `structuredContent`.
-fn answered(r: &Value) -> &Value {
+pub(super) fn answered(r: &Value) -> &Value {
     ok(r)
 }
 
-fn reasons(r: &Value) -> Vec<String> {
+pub(super) fn reasons(r: &Value) -> Vec<String> {
     answered(r)["summary"]["reasons"].as_array().unwrap().iter().map(|x| x["rule"].as_str().unwrap().to_string()).collect()
 }
 

@@ -374,6 +374,51 @@ fn a_line_over_a_mebibyte_is_refused_and_the_next_one_read() {
     assert!(bridge.ask(2, "ping", json!({}))["result"].is_object());
 }
 
+/// Edge case 59: the commands that set MCP up run only from a click in the Connected apps card,
+/// so neither `mailcraft-cli run` nor a script can make a token, switch MCP on or set up approval.
+#[test]
+fn edge_case_59_the_cli_cant_run_the_commands_that_set_mcp_up() {
+    let data = data_dir("owner-only");
+    let cli = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_mailcraft-cli")).arg("--data").arg(&data).args(args).env_remove("MAILCRAFT_DATA").output().unwrap()
+    };
+    let made = cli(&["sample"]);
+    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+    for (id, params) in [
+        ("mcp.createToken", r#"{"name":"Sneaky","permissions":["read","organize","send"]}"#),
+        ("mcp.setEnabled", r#"{"on":true}"#),
+        ("mcp.setupApproval", "{}"),
+        ("mcp.setRules", r#"{"noCodeReplies":true,"dailyLimit":200}"#),
+        ("mcp.revokeToken", r#"{"id":"x"}"#),
+    ] {
+        let out = cli(&["run", id, params]);
+        let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(!out.status.success(), "{id} ran: {stdout}");
+        assert!(stderr.contains("Connected apps"), "{id}: {stderr}");
+        assert!(!stdout.contains("mcp_"), "no token was made: {stdout}");
+    }
+    // Nothing was written: no settings, so no token for a bridge to be let in with.
+    let kept: Vec<_> = walk(&data).into_iter().filter(|p| p.file_name().is_some_and(|n| n == "mcp.json")).collect();
+    assert!(kept.is_empty(), "{kept:?}");
+}
+
+/// Every file under `dir`.
+fn walk(dir: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut todo = vec![dir.to_path_buf()];
+    while let Some(d) = todo.pop() {
+        for entry in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                todo.push(path);
+            } else {
+                found.push(path);
+            }
+        }
+    }
+    found
+}
+
 /// The same conversation against the real MailCraft (`mailcraft --sample`) on a virtual X
 /// display: a token made through the engine, MCP switched on, the app started, and a client's
 /// `initialize`, `tools/list` and `tools/call` answered by it. Needs `Xvfb` and the app built

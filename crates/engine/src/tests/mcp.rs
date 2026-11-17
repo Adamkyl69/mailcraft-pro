@@ -9,7 +9,9 @@ use super::*;
 use crate::McpOutcome;
 use crate::mcp::Permission;
 
+mod adversarial;
 mod approval;
+mod edge_cases;
 mod permissions;
 mod protocol;
 mod sending;

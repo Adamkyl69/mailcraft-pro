@@ -1820,7 +1820,7 @@ count	occurrences	مرات
 	Receiving	التلقي
 # File › Options › Connected apps
 	6-digit code	رمز من 6 أرقام
-	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	رد في محادثة كتبتَ فيها أنت أيضًا، من الحساب الذي وصلت إليه الرسالة، إلى أشخاص موجودين أصلًا في المحادثة سبق أن راسلتهم أو حفظتهم كجهات اتصال، بلا مرفقات وبلا أي شيء سينبّه إليه MailCraft.
+	A reply in a conversation you've written in, from the account it came to, to people already on the message you're replying to whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	رد في محادثة كتبتَ فيها أنت أيضًا، من الحساب الذي وصلت إليه الرسالة، إلى أشخاص موجودين أصلًا في الرسالة التي تردّ عليها سبق أن راسلتهم أو حفظتهم كجهات اتصال، بلا مرفقات وبلا أي شيء سينبّه إليه MailCraft.
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	يمكن لتطبيقات الذكاء الاصطناعي على هذا الكمبيوتر، مثل Claude Desktop وClaude Code، قراءة بريدك وتنظيمه في MailCraft ما دام يعمل. يحصل كل تطبيق على رمز مميّز خاص به. لا يمكن الوصول إلى أي شيء من كمبيوتر آخر.
 	Allow connected apps	السماح للتطبيقات المتصلة
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	يمكن لتطبيق ذكاء اصطناعي قادر على تشغيل أوامر الصدفة (shell) أن يتجاوز هذه الحمايات: أبقِ أوامر الصدفة الخاصة به خلف طلبات الأذونات.

@@ -150,7 +150,7 @@ fn rules(s: &Session, t: &Tokens, ui: &mut Ui, acts: &mut Vec<Action>) {
     let rules = &s.mcp.settings.rules;
     let label = tl!("Send replies without a code");
     let about = tl!(
-        "A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about."
+        "A reply in a conversation you've written in, from the account it came to, to people already on the message you're replying to whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about."
     );
     setting(ui, t, false, label, Some(about), |ui| {
         let mut v = rules.no_code_replies;

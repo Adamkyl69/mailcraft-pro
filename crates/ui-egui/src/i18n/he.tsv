@@ -1820,7 +1820,7 @@ count	occurrences	פעמים
 	Receiving	קבלה
 # File › Options › Connected apps
 	6-digit code	קוד בן 6 ספרות
-	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	תשובה בשיחה שגם כתבת בה, מהחשבון שאליו הגיעה ההודעה, לאנשים שכבר נמצאים בשיחה ושכבר כתבת להם או ששמרת כאנשי קשר, בלי קבצים מצורפים ובלי דבר ש-MailCraft היה מזהיר ממנו.
+	A reply in a conversation you've written in, from the account it came to, to people already on the message you're replying to whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	תשובה בשיחה שגם כתבת בה, מהחשבון שאליו הגיעה ההודעה, לאנשים שכבר נמצאים בהודעה שאתה עונה עליה ושכבר כתבת להם או ששמרת כאנשי קשר, בלי קבצים מצורפים ובלי דבר ש-MailCraft היה מזהיר ממנו.
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	אפליקציות בינה מלאכותית במחשב הזה, כמו Claude Desktop ו-Claude Code, יכולות לקרוא ולארגן את הדואר שלך ב-MailCraft כל עוד הוא פועל. כל אפליקציה מקבלת אסימון משלה. אין גישה לשום דבר ממחשב אחר.
 	Allow connected apps	אפשר אפליקציות מחוברות
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	אפליקציית בינה מלאכותית שיכולה להריץ פקודות מעטפת (shell) יכולה לעקוף את ההגנות האלה: השאר את פקודות המעטפת שלה מאחורי בקשות ההרשאה שלה.

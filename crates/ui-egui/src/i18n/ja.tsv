@@ -1821,7 +1821,7 @@ count	occurrences	回
 	Receiving	受信
 # File › Options › Connected apps
 	6-digit code	6桁のコード
-	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	自分も書き込んだ会話での返信で、受信したアカウントから、すでにその会話に含まれていて、これまでにメールを送った相手または連絡先に保存した相手に宛て、添付ファイルがなく、MailCraft が警告する内容もないもの。
+	A reply in a conversation you've written in, from the account it came to, to people already on the message you're replying to whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	自分も書き込んだ会話での返信で、受信したアカウントから、返信先のメッセージにすでに含まれていて、これまでにメールを送った相手または連絡先に保存した相手に宛て、添付ファイルがなく、MailCraft が警告する内容もないもの。
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	このコンピューター上の Claude Desktop や Claude Code などの AI アプリは、MailCraft の実行中にメールを読み取り、整理できます。アプリごとに専用のトークンが発行されます。別のコンピューターからは何にもアクセスできません。
 	Allow connected apps	連携アプリを許可する
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	シェルコマンドを実行できる AI アプリは、これらの保護を回避できてしまいます。そのアプリのシェルコマンドは、権限の確認を挟むようにしてください。

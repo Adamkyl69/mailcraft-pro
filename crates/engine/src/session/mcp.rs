@@ -558,7 +558,7 @@ impl Session {
     }
 
     /// Pending sends past their time are dropped.
-    fn drop_expired_pending(&mut self, now_ms: i64) {
+    pub(super) fn drop_expired_pending(&mut self, now_ms: i64) {
         self.mcp.pending.retain(|p| p.expires_ms > now_ms);
     }
 

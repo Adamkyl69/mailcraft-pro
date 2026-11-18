@@ -330,7 +330,7 @@ pub struct Session {
     pub(crate) marks_deferred: BTreeMap<(String, String), bool>,
     /// Flags owed to originals, keyed by the Outbox id of the reply or forward that earns them:
     /// set when the server accepts that message. Saved to disk so a restart keeps them.
-    pending_marks: BTreeMap<u64, (MessageKey, Flag)>,
+    pub(crate) pending_marks: BTreeMap<u64, (MessageKey, Flag)>,
     /// Summaries kept cached at most ([`CACHE_MESSAGES`]; tests make it small).
     pub(crate) cache_limit: usize,
     /// Built on first use from the cached mail; dropped when mail arrives.

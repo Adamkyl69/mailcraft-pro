@@ -249,18 +249,23 @@ impl Session {
         } else if has("queued") {
             Ok(Step::Done(Ok(json!({"outcome": "queued", "id": id, "error": "kept in the Outbox: it goes out later"}))))
         } else if has("sending") || has("protecting") {
-            // The message is gone from the screen by the time the server answers, so the flag the
-            // original earns (Replied) is owed through the same list the Outbox's replies use.
-            if let (Some(src), Some(mode)) = (&c.source, c.mode)
-                && self.pending_marks.len() < 1000
-            {
-                let flag = if mode == ReplyMode::Forward { Flag::Forwarded } else { Flag::Answered };
-                self.pending_marks.insert(id, (src.clone(), flag));
-                self.save_pending_marks();
-            }
+            self.owe_reply_flag(&c);
             Ok(Step::Later(Waiting::Send { compose_id: id, outcome: None }))
         } else {
             Err(Fail::Tool("the message couldn't be handed over".to_string()))
+        }
+    }
+
+    /// A message going out over the network is gone from the screen by the time the server
+    /// answers, so the flag its original earns (Replied or Forwarded) is owed through the same
+    /// list the Outbox's replies use.
+    fn owe_reply_flag(&mut self, c: &Compose) {
+        if let (Some(src), Some(mode)) = (&c.source, c.mode)
+            && self.pending_marks.len() < 1000
+        {
+            let flag = if mode == ReplyMode::Forward { Flag::Forwarded } else { Flag::Answered };
+            self.pending_marks.insert(c.id, (src.clone(), flag));
+            self.save_pending_marks();
         }
     }
 
@@ -313,11 +318,18 @@ impl Session {
 
     /// The owner sends a held message from the desktop: as `compose.send` answers.
     pub(crate) fn mcp_send_pending(&mut self, id: &str) -> CmdResult {
+        // One that ran out of time is gone, as it is for every call: it can't be sent late.
+        self.drop_expired_pending(self.clock.now.saturating_mul(1000));
         let at =
             self.mcp.pending.iter().position(|p| p.id == id).ok_or_else(|| CmdError::Params("no such pending send: it may have expired".into()))?;
         let held = self.mcp.pending.remove(at);
         match self.send_frozen(&held.compose, true) {
-            Ok(answer) => Ok(answer),
+            Ok(answer) => {
+                if answer.get("sending").is_some() || answer.get("protecting").is_some() {
+                    self.owe_reply_flag(&held.compose);
+                }
+                Ok(answer)
+            }
             Err(e) => {
                 self.mcp.pending.insert(at.min(self.mcp.pending.len()), held);
                 Err(CmdError::Failed(e))

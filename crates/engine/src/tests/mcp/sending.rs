@@ -371,6 +371,7 @@ fn the_owner_can_send_or_discard_a_held_message_at_the_desktop() {
     let held = tool(&mut s, &t, "mail_send", json!({"to": "a@example.com", "subject": "From the desk", "body": "b"}));
     let pending = answered(&held)["pendingId"].as_str().unwrap().to_string();
     assert_eq!(s.run("mcp.discardPending", &json!({"id": "nothing"})).unwrap(), json!({"discarded": false}));
+    in_time(&mut s);
     assert!(matches!(s.run("mcp.sendPending", &json!({"id": "nothing"})), Err(CmdError::Params(_))));
     let sent = s.run("mcp.sendPending", &json!({"id": pending})).unwrap();
     assert!(sent["sent"].is_number(), "{sent}");
@@ -406,6 +407,45 @@ fn the_message_the_user_is_writing_is_left_alone_by_a_send() {
     assert_eq!(answered(&r)["outcome"], json!("sent"), "{r}");
     assert_eq!(s.compose.as_ref().map(|c| (&c.to, &c.subject, &c.body, c.id)), Some((&mine.to, &mine.subject, &mine.body, mine.id)));
     assert_eq!(s.composes.len(), windows);
+}
+
+/// The session's clock set to ten seconds before the first held send runs out of time, and after
+/// it (the owner's click has no time of its own: it reads the session's clock).
+fn in_time(s: &mut Session) {
+    s.clock.now = s.mcp.pending[0].expires_ms.div_euclid(1000) - 10;
+}
+
+fn out_of_time(s: &mut Session) {
+    s.clock.now = s.mcp.pending[0].expires_ms.div_euclid(1000) + 10;
+}
+
+/// A held send that ran out of time can't be sent from the desktop either.
+#[test]
+fn the_owner_cant_send_a_held_message_that_has_expired() {
+    let Fixture { mut s, t, .. } = fixture("mcp-send-owner-expired");
+    activate(&mut s);
+    s.mcp.owner_ui = true;
+    let held = tool(&mut s, &t, "mail_send", json!({"to": "a@example.com", "subject": "Too late", "body": "b"}));
+    let pending = answered(&held)["pendingId"].as_str().unwrap().to_string();
+    out_of_time(&mut s);
+    assert!(matches!(s.run("mcp.sendPending", &json!({"id": pending})), Err(CmdError::Params(_))));
+    assert!(s.mcp.pending.is_empty());
+    assert!(!s.folder_state("sample", "Sent").messages.iter().any(|m| m.subject == "Too late"));
+}
+
+/// A reply the owner sends from the desktop over the network still earns its original the Replied flag.
+#[test]
+fn a_held_reply_sent_by_the_owner_over_the_network_flags_its_original() {
+    let (mut s, _t, _id, _now, _pending) = server_send("mcp-send-owner-marks");
+    s.mcp.owner_ui = true;
+    let original = MessageKey { account: "sample".into(), folder: "INBOX".into(), validity: 1, uid: 77 };
+    let c = &mut s.mcp.pending[0].compose;
+    (c.source, c.mode) = (Some(original.clone()), Some(mailcraft_mime::ReplyMode::Reply));
+    let (pending, compose_id) = (s.mcp.pending[0].id.clone(), s.mcp.pending[0].compose.id);
+    in_time(&mut s);
+    let answer = s.run("mcp.sendPending", &json!({"id": pending})).unwrap();
+    assert!(answer.get("sending").is_some(), "{answer}");
+    assert_eq!(s.pending_marks.get(&compose_id), Some(&(original, Flag::Answered)));
 }
 
 /// A server account, the user writing a message, and an approved message about to go out to it.

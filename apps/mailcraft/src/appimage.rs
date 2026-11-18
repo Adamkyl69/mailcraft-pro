@@ -3,9 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-/// Whether `exe` runs from the AppImage mounted at `appdir`; anything unclear counts as not. One
-/// inherited from another program then goes on to the checks below: this copy is updated as
-/// what it is (a package, the tarball), or not at all, never over that program's file.
+/// Whether `exe` runs from the AppImage mounted at `appdir`; anything unclear counts as not. An
+/// `APPIMAGE` inherited from another program (one AppImage starting another) then doesn't count:
+/// the updater treats this copy as what it is (a package, the tarball), and the Connected apps
+/// command names the program beside it, never that other program's file.
 pub(crate) fn runs_from_image(exe: &Path, appdir: Option<&Path>, canonical: &dyn Fn(&Path) -> Option<PathBuf>) -> bool {
     let Some(appdir) = appdir.filter(|d| d.has_root()).and_then(canonical) else { return false };
     // No image is mounted at the root, where every program would count as inside it.

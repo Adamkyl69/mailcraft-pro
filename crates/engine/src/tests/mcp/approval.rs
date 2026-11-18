@@ -186,3 +186,17 @@ fn the_commands_for_approval_only_run_from_the_owners_click_and_survive_junk() {
         assert!(fails(&r).contains("isn't one an AI app may run"), "{id}");
     }
 }
+
+/// A start-up read that comes late doesn't overwrite a secret set up (or one already read).
+#[test]
+fn a_late_keychain_read_leaves_the_secret_alone() {
+    let mut s = owner("mcp-approval-late-read");
+    s.run("mcp.setupApproval", &json!({})).unwrap();
+    let bytes = s.mcp.setup.clone().unwrap().bytes;
+    s.run("mcp.confirmApproval", &json!({"code": code(&bytes, NOW)})).unwrap();
+    assert_eq!(s.mcp.secret.as_deref(), Some(&bytes[..]));
+    s.apply(Event::AppSecretRead { what: "mcp-approval".into(), secret: Some(Secret("MZXW6YTB".into())) });
+    assert_eq!(s.mcp.secret.as_deref(), Some(&bytes[..]));
+    s.apply(Event::AppSecretRead { what: "mcp-approval".into(), secret: None });
+    assert_eq!(s.mcp.secret.as_deref(), Some(&bytes[..]));
+}

@@ -570,7 +570,9 @@ impl Session {
 
     /// The keychain gave the approval secret (or none: approval then has to be set up again).
     pub(crate) fn mcp_secret_read(&mut self, what: &str, secret: Option<Secret>) {
-        if what != APPROVAL_SECRET {
+        // Only while the app is still waiting for it: a late start-up read must not overwrite a
+        // secret set up (or cleared) in the meantime.
+        if what != APPROVAL_SECRET || !self.mcp_wants_secret() {
             return;
         }
         self.mcp.secret = secret.and_then(|s| approval::unbase32(&s.0));

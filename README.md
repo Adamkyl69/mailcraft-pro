@@ -43,7 +43,7 @@ of your mail on your computer, so it works offline.
 
 ## Install
 
-Download an installer from [mailcraft.dev](https://mailcraft.dev/#download), which offers the file for your system, or from the [Releases](https://github.com/ZIDAN44/mailcraft/releases) page:
+Download an installer from this repository's [Releases](../../releases) page. Connected apps (below) needs a build from here: the installers on mailcraft.dev and the upstream Releases don't have it.
 
 - **Windows:** `.msi`, or a portable zip.
 - **macOS:** `.dmg`.
@@ -66,7 +66,7 @@ cd apps/mailcraft-web && trunk serve           # browser: http://127.0.0.1:8774/
 
 ## Use MailCraft from an AI app
 
-MailCraft can answer AI apps on your computer, such as Claude Desktop and Claude Code, through a local [MCP](https://modelcontextprotocol.io) server. It works only while MailCraft is running, and nothing is reachable from another computer: the app starts `mailcraft-cli mcp`, which passes each request to the running MailCraft over its private local socket. It isn't offered in the browser build.
+MailCraft can answer AI apps on your computer, such as Claude Desktop and Claude Code, through a local [MCP](https://modelcontextprotocol.io) server. It works only while MailCraft is running, and nothing is reachable from another computer: the app starts `mailcraft-cli mcp`, which passes each request to the running MailCraft over its private local socket. It isn't offered in the browser build, and on a Mac the bridge isn't packaged yet ([known gaps](docs/gaps.md)).
 
 1. In MailCraft, open **File › Options › Connected apps** and make a token for the app, with the permissions it needs.
 2. Copy the token (it's shown once) and paste the snippet beside it into Claude Desktop's `claude_desktop_config.json`, or run the `claude mcp add` line. Both set `MAILCRAFT_MCP_TOKEN` for the bridge.

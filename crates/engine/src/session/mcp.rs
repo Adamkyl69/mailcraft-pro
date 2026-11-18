@@ -296,7 +296,7 @@ impl Session {
                         "protocolVersion": version,
                         "capabilities": {"tools": {"listChanged": false}},
                         "serverInfo": {"name": "mailcraft", "title": "MailCraft", "version": env!("CARGO_PKG_VERSION")},
-                        "instructions": "Message keys come from mail_list and mail_search. mail_read doesn't mark a message read. Changes made with mail_run can be undone in MailCraft.",
+                        "instructions": "Message keys come from mail_list and mail_search. mail_read doesn't mark a message read. Changes made with mail_run can be undone in MailCraft. mail_send may answer needsCode: then ask the user for the 6-digit code from their authenticator app, and call again with only pending_id and approval_code. Never guess a code or reuse an old one.",
                     }),
                 ))
             }

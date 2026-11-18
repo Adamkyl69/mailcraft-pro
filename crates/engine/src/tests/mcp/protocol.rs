@@ -191,3 +191,14 @@ fn a_damaged_settings_file_leaves_no_tokens_and_is_kept_aside() {
     // The store kept the damaged copy, and didn't write over what it couldn't read.
     assert!(dir.join("mcp.json.bad").exists());
 }
+
+/// The app is told, at `initialize`, what to do with a `needsCode` answer.
+#[test]
+fn initialize_tells_the_app_to_ask_the_user_for_the_code() {
+    let (mut s, t) = mcp_session("mcp-init-instructions", &ALL);
+    let r = call(&mut s, &t, "initialize", json!({"protocolVersion": "2025-06-18"}));
+    let text = r["result"]["instructions"].as_str().unwrap();
+    for needle in ["needsCode", "ask the user for the 6-digit code", "authenticator app", "Never guess a code or reuse"] {
+        assert!(text.contains(needle), "{needle}: {text}");
+    }
+}

@@ -1836,7 +1836,7 @@ count	occurrences	次
 	Expires {when}	{when} 到期
 	For Claude Code:	適用於 Claude Code：
 	For Claude Desktop, in claude_desktop_config.json:	適用於 Claude Desktop，在 claude_desktop_config.json 中：
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	MailCraft 目前在此系統上尚未封裝 AI 應用程式所用的橋接程式，因此沒有可複製的程式碼片段。請參閱已知缺口。
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft 目前在此系統上尚未封裝 AI 應用程式所用的橋接程式，因此沒有可複製的程式碼片段。替代做法請見專案 README 的「Known gaps」一節（docs/gaps.md）。
 	Last used {date}	上次使用 {date}
 	Made {date}	建立於 {date}
 	Make a token first	請先建立權杖

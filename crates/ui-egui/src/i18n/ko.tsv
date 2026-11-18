@@ -1836,7 +1836,7 @@ count	occurrences	회
 	Expires {when}	{when} 만료
 	For Claude Code:	Claude Code용:
 	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop용, claude_desktop_config.json에서:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	이 시스템에서는 AI 앱용 브리지가 아직 MailCraft에 포함되어 있지 않아 복사할 스니펫이 없습니다. 알려진 부족한 점을 참고하세요.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	이 시스템에서는 AI 앱용 브리지가 아직 MailCraft에 포함되어 있지 않아 복사할 스니펫이 없습니다. 대신 할 일은 프로젝트 README의 「Known gaps」 절(docs/gaps.md)에 나와 있습니다.
 	Last used {date}	마지막 사용 {date}
 	Made {date}	생성 {date}
 	Make a token first	먼저 토큰을 만드세요

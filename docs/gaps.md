@@ -116,6 +116,17 @@ Test builds update themselves ([how test builds update](updates.md)). These part
 - **Cause:** The macOS package doesn't put the CLI beside the app yet, so there is no program the
   card could name that is certain to be there.
 
+### 10. Connected apps on Windows: unusual characters in the data folder's path
+
+- **Impact:** The `claude mcp add` line File › Options › Connected apps shows is quoted for a path
+  with spaces and backslashes. If a data folder you chose with `--data` has a `$`, a backtick, a
+  `%`, a `,` or an `@` in its path, the line may not reach Claude Code as written: PowerShell reads
+  `$` and the backtick inside double quotes, `,` and `@` outside them, and cmd reads `%`.
+- **Workaround:** Edit the line before running it (in PowerShell, put the path in single quotes
+  instead), or use the Claude Desktop snippet, which is JSON and has no such cases.
+- **Cause:** One line has to work in both PowerShell and cmd, and their quoting rules differ; the
+  card quotes for Windows programs' own command-line rules, which both shells pass on.
+
 ## Not planned
 
 These are outside MailCraft's control, or accepted as they are.

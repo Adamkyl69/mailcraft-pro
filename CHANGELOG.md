@@ -29,6 +29,7 @@ on GitHub.
 - Connected apps from the AppImage: the snippets name the AppImage file itself (its `mcp` entry starts the bridge) instead of a path inside the temporary mount, which changed on every launch.
 - Connected apps from the Flatpak: the snippets run `flatpak run --command=mailcraft-cli` on the computer (the program inside the sandbox can't be run from outside it), and the running MailCraft's socket is in the folder every instance of the app shares, so the bridge reaches it.
 - On a Mac, Connected apps says the bridge isn't packaged there yet instead of giving a snippet for a program that isn't found ([known gaps](docs/gaps.md)).
+- Connected apps on Windows: the `claude mcp add` line for a data folder whose path ends in a backslash no longer lets that backslash escape the closing quote.
 - In the dark theme, the segment of a switch under the pointer (File › Options › Theme, Reading pane and the others) no longer looks chosen: it was lighter than the segment that was.
 
 ## 0.40.0 - 2026-11-17

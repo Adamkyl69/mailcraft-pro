@@ -90,6 +90,13 @@ impl std::fmt::Debug for PendingSend {
     }
 }
 
+/// What deciding a waiting call came to.
+enum Polled {
+    Refused,
+    Waiting,
+    Answer(Result<Value, String>),
+}
+
 /// MCP's state in the session.
 #[derive(Default)]
 pub struct McpState {
@@ -130,6 +137,9 @@ pub struct McpState {
     /// The protocol version each token's app asked for at `initialize` (calls come one to a
     /// connection, so this is where it's remembered).
     versions: HashMap<String, &'static str>,
+    /// Tests only: the tool (or `poll`) that panics, to prove the guard around them.
+    #[cfg(test)]
+    pub(crate) panic_in: Option<&'static str>,
 }
 
 impl std::fmt::Debug for McpState {
@@ -362,7 +372,10 @@ impl Session {
             return McpOutcome::Reply(protocol::result(&id, tool_reply(&denied, structured)));
         }
         let watch = Watch::start();
-        let step = self.mcp_tool(tool.name, &args, (perms, token_id), now_ms);
+        // As `Session::run`: a panic in a tool is an error for the app, never a crash (the log
+        // says where it happened).
+        let step = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.mcp_tool(tool.name, &args, (perms, token_id), now_ms)))
+            .unwrap_or_else(|_| Step::Done(Err("the tool failed unexpectedly".to_string())));
         match step {
             Step::Done(result) => {
                 log::info!(target: "mailcraft::mcp", "{name}: {} {} in {} ms", tool.name, outcome_of(&result), watch.ms());
@@ -399,6 +412,10 @@ impl Session {
 
     fn mcp_tool(&mut self, tool: &str, args: &Value, who: (&BTreeSet<Permission>, &str), now_ms: i64) -> Step {
         let (perms, token_id) = who;
+        #[cfg(test)]
+        if self.mcp.panic_in == Some(tool) {
+            panic!("a tool forced to panic");
+        }
         match tool {
             "mail_accounts" => self.mail_accounts(args).into(),
             "mail_list" => self.mail_list(args).into(),
@@ -420,18 +437,27 @@ impl Session {
         let waiting = std::mem::take(&mut self.mcp.waiting);
         let mut done = Vec::new();
         for d in waiting {
-            if !self.mcp_still_allowed(&d.token_id, d.tool) {
-                // Revoked, switched off or narrowed while it waited: no mail data goes out (a send
-                // that already went can't be undone, but its details aren't told).
-                self.mcp.busy.remove(&d.token_id);
-                log::info!(target: "mailcraft::mcp", "{} refused after {} ms: the token is no longer accepted", d.tool, now_ms.saturating_sub(d.started_ms).max(0));
-                let why = "this token isn't accepted: MCP is off in MailCraft, or the token was revoked";
-                done.push((d.ticket, protocol::error(Some(&d.id), protocol::TOKEN_REFUSED, why)));
-                continue;
-            }
-            match self.mcp_poll(&d, now_ms) {
-                None => self.mcp.waiting.push(d),
-                Some(result) => {
+            // A panic while deciding one call answers that call with an error: the others stay on
+            // the list and the token is released on every path.
+            let step = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if !self.mcp_still_allowed(&d.token_id, d.tool) {
+                    Polled::Refused
+                } else {
+                    self.mcp_poll(&d, now_ms).map_or(Polled::Waiting, Polled::Answer)
+                }
+            }))
+            .unwrap_or_else(|_| Polled::Answer(Err("the call failed unexpectedly".to_string())));
+            match step {
+                Polled::Refused => {
+                    // Revoked, switched off or narrowed while it waited: no mail data goes out (a send
+                    // that already went can't be undone, but its details aren't told).
+                    self.mcp.busy.remove(&d.token_id);
+                    log::info!(target: "mailcraft::mcp", "{} refused after {} ms: the token is no longer accepted", d.tool, now_ms.saturating_sub(d.started_ms).max(0));
+                    let why = "this token isn't accepted: MCP is off in MailCraft, or the token was revoked";
+                    done.push((d.ticket, protocol::error(Some(&d.id), protocol::TOKEN_REFUSED, why)));
+                }
+                Polled::Waiting => self.mcp.waiting.push(d),
+                Polled::Answer(result) => {
                     self.mcp.busy.remove(&d.token_id);
                     let name = self.mcp.settings.tokens.iter().find(|t| t.id == d.token_id).map_or("a revoked app", |t| t.name.as_str());
                     log::info!(target: "mailcraft::mcp", "{name}: {} {} after {} ms", d.tool, outcome_of(&result), now_ms.saturating_sub(d.started_ms).max(0));
@@ -444,6 +470,10 @@ impl Session {
 
     /// The answer of a waiting call, if it has one.
     fn mcp_poll(&mut self, d: &Deferred, now_ms: i64) -> Option<Result<Value, String>> {
+        #[cfg(test)]
+        if self.mcp.panic_in == Some("poll") {
+            panic!("a poll forced to panic");
+        }
         let late = now_ms >= d.deadline_ms;
         match &d.kind {
             Waiting::Sync { accounts, failed } => {

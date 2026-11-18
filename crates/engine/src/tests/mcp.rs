@@ -12,6 +12,7 @@ use crate::mcp::Permission;
 mod adversarial;
 mod approval;
 mod edge_cases;
+mod guards;
 mod permissions;
 mod protocol;
 mod sending;

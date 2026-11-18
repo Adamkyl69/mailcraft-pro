@@ -1824,7 +1824,7 @@ count	occurrences	ripetizioni
 	Receiving	Ricezione
 # File › Options › Connected apps
 	6-digit code	Codice a 6 cifre
-	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Una risposta in una conversazione in cui hai scritto, dall'account a cui è arrivata, a persone a cui hai già scritto o che hai salvato tra i contatti, senza allegati e senza nulla di cui MailCraft ti avviserebbe.
+	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Una risposta in una conversazione in cui hai scritto, dall'account a cui è arrivata, a persone già presenti nella conversazione, a cui hai già scritto o che hai salvato tra i contatti, senza allegati e senza nulla di cui MailCraft ti avviserebbe.
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Le app di IA su questo computer, come Claude Desktop e Claude Code, possono leggere e organizzare la tua posta in MailCraft finché è in esecuzione. Ogni app riceve un token proprio. Niente è raggiungibile da un altro computer.
 	Allow connected apps	Consenti le app connesse
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Un'app di IA che può eseguire comandi di shell può aggirare queste protezioni: tieni i suoi comandi di shell dietro le sue richieste di autorizzazione.

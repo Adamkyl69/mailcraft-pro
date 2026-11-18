@@ -159,7 +159,7 @@ fn each_rule_broken_on_its_own_says_which() {
     assert_eq!(reasons(&reply(&mut s, &thread, json!({"from": second}))), ["otherAccount"]);
     // A recipient never written to.
     let r = reply(&mut s, &thread, json!({"to": "stranger@example.com"}));
-    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "unknownRecipients", "count": 1}]));
+    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "unknownRecipients", "count": 1}, {"rule": "outsideConversation", "count": 1}]));
     // A file.
     let file = scratch("mcp-send-file");
     std::fs::create_dir_all(&file).unwrap();
@@ -199,7 +199,7 @@ fn a_message_in_the_inbox_that_says_its_from_the_owner_makes_nobody_known() {
     // The inbox holds a message "from the owner" to evil@example.com: the address book ContactBook
     // counts would take it as mail the owner wrote.
     let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": thread.to_id(), "body": "ok", "to": "evil@example.com"}));
-    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "unknownRecipients", "count": 1}]));
+    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "unknownRecipients", "count": 1}, {"rule": "outsideConversation", "count": 1}]));
     // Nor does moving it into Sent: an AI app may not move mail there.
     let forged = s.folder_state("sample", "INBOX").messages[0].key.to_id();
     let r = tool(&mut s, &t, "mail_run", json!({"command": "mail.move", "keys": [forged], "params": {"folder": "Sent"}}));
@@ -212,6 +212,7 @@ fn a_message_in_the_inbox_that_says_its_from_the_owner_makes_nobody_known() {
 #[test]
 fn a_saved_contact_counts_as_known() {
     let Fixture { mut s, t, thread, .. } = fixture("mcp-send-contact");
+    activate(&mut s);
     s.pim.entry("sample".into()).or_default().cards.push(mailcraft_model::pim::StoredCard {
         card: mailcraft_model::vcard::Card {
             name: "Dana Cole".into(),
@@ -220,7 +221,32 @@ fn a_saved_contact_counts_as_known() {
         },
         ..Default::default()
     });
+    // She is known, but isn't in the print shop's message: adding her needs a code.
     let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": thread.to_id(), "body": "ok", "cc": "dana@example.com"}));
+    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "outsideConversation", "count": 1}]), "{r}");
+}
+
+/// A reply may go without a code only to people already in the message it answers (its From,
+/// Reply-To, To and Cc), and a known contact outside it doesn't count.
+#[test]
+fn adding_a_known_contact_who_is_not_in_the_message_needs_a_code() {
+    let Fixture { mut s, t, thread, .. } = fixture("mcp-send-outside");
+    activate(&mut s);
+    // Zoe is a saved contact (so known), and isn't in the print shop's message.
+    s.pim.entry("sample".into()).or_default().cards.push(mailcraft_model::pim::StoredCard {
+        card: mailcraft_model::vcard::Card {
+            name: "Zoe".into(),
+            emails: vec![mailcraft_model::vcard::Typed { value: "zoe@studio.example".into(), kind: String::new() }],
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": thread.to_id(), "body": "ok", "cc": "zoe@studio.example"}));
+    assert_eq!(answered(&r)["outcome"], json!("needsCode"), "{r}");
+    assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "outsideConversation", "count": 1}]), "{r}");
+    s.mcp.pending.clear();
+    // The print shop alone, who is in the message, goes at once (the control).
+    let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": thread.to_id(), "body": "ok", "to": "ORDERS@printshop.example"}));
     assert_eq!(answered(&r)["outcome"], json!("sent"), "{r}");
 }
 

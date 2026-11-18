@@ -109,7 +109,7 @@ pub const TOOLS: [Tool; 9] = [
     Tool {
         name: "mail_send",
         title: "Send a message",
-        description: "Send a new message (`to`, `subject`, `body`) or a reply (`in_reply_to`: a key, and the `body` to put above the quoted message). A reply in a conversation the owner has written in, to people they've written to, with no files, goes at once. Anything else comes back as needsCode: ask the owner for the 6-digit code from their authenticator app, then call again with only `pending_id` and `approval_code`.",
+        description: "Send a new message (`to`, `subject`, `body`) or a reply (`in_reply_to`: a key, and the `body` to put above the quoted message). A reply in a conversation the owner has written in, to people already in that conversation whom they've written to, with no files, goes at once; adding anyone else needs a code. Anything else comes back as needsCode: ask the owner for the 6-digit code from their authenticator app, then call again with only `pending_id` and `approval_code`.",
         permission: Permission::Send,
         read_only: false,
         idempotent: false,

@@ -1825,7 +1825,7 @@ count	occurrences	kez
 	Receiving	Alma
 # File › Options › Connected apps
 	6-digit code	6 haneli kod
-	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Kendinizin de yazdığı bir yazışmada, gelen hesaptan, daha önce yazdığınız ya da kişi olarak kaydettiğiniz kişilere, eksiz ve MailCraft'ın uyaracağı hiçbir şey olmadan verilen yanıt.
+	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Kendinizin de yazdığı bir yazışmada, gelen hesaptan, yazışmada zaten bulunan ve daha önce yazdığınız ya da kişi olarak kaydettiğiniz kişilere, eksiz ve MailCraft'ın uyaracağı hiçbir şey olmadan verilen yanıt.
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Bu bilgisayardaki Claude Desktop ve Claude Code gibi yapay zekâ uygulamaları, MailCraft çalışırken postanızı okuyabilir ve düzenleyebilir. Her uygulama kendi belirtecini alır. Başka bir bilgisayardan hiçbir şeye erişilemez.
 	Allow connected apps	Bağlı uygulamalara izin ver
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Kabuk komutları çalıştırabilen bir yapay zekâ uygulaması bu korumaları aşabilir: kabuk komutlarını izin istemlerinin arkasında tutun.

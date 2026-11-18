@@ -325,7 +325,11 @@ fn a_message_forged_to_be_from_the_owner_in_any_other_folder_makes_nobody_known(
     activate(&mut s);
     for uid in [71, 72, 73, 74, 75, 76] {
         let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": thread.to_id(), "body": "ok", "to": format!("mallory{uid}@example.net")}));
-        assert_eq!(answered(&r)["summary"]["reasons"], json!([{"rule": "unknownRecipients", "count": 1}]), "{uid}: {r}");
+        assert_eq!(
+            answered(&r)["summary"]["reasons"],
+            json!([{"rule": "unknownRecipients", "count": 1}, {"rule": "outsideConversation", "count": 1}]),
+            "{uid}: {r}"
+        );
         s.mcp.pending.clear();
     }
     assert_eq!(s.mcp.settings.sent_today.1, 0);
@@ -357,11 +361,19 @@ fn a_stranger_who_borrows_a_thread_still_isnt_someone_the_owner_has_written_to()
     let why = reasons(&r);
     assert!(why.contains(&"unknownRecipients".to_string()), "{why:?}");
     assert!(!why.contains(&"ownerNotInThread".to_string()), "the borrowed thread does count as the owner's: {why:?}");
+    // Its sender and Reply-To are in the message, so they aren't outsiders: only the stranger rule holds it.
+    assert!(!why.contains(&"outsideConversation".to_string()), "{why:?}");
     // The owner is shown who it would go to, so a code isn't given blind.
     let to = answered(&r)["summary"]["to"].to_string();
     assert!(to.contains("mallory@example.net") || to.contains("evil@example.com"), "{to}");
     assert_eq!(s.folder_state("sample", "Sent").messages.len(), sent_before);
     assert_eq!(s.mcp.settings.sent_today.1, 0);
+    // Borrowing the thread to add a known contact (the print shop, whom the owner has written to)
+    // brings the conversation rule in as well: nobody outside the message gets mail without a code.
+    s.mcp.pending.clear();
+    let r = tool(&mut s, &t, "mail_send", json!({"in_reply_to": key, "body": "ok", "cc": "orders@printshop.example"}));
+    assert_eq!(answered(&r)["outcome"], json!("needsCode"), "{r}");
+    assert!(reasons(&r).contains(&"outsideConversation".to_string()), "{:?}", reasons(&r));
 }
 
 #[test]

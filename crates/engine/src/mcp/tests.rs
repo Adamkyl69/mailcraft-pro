@@ -396,6 +396,7 @@ fn clean() -> RuleFacts {
         owner_wrote_in_thread: true,
         from_receiving_account: true,
         unknown_recipients: Vec::new(),
+        outside_conversation: Vec::new(),
         attachments: 0,
         checks: 0,
         sent_today: 0,
@@ -406,11 +407,12 @@ fn clean() -> RuleFacts {
 #[test]
 fn a_clean_reply_needs_no_code_and_each_rule_missed_says_so() {
     assert_eq!(rules::misses(&clean()), []);
-    let broken: [(RuleFacts, RuleMiss); 7] = [
+    let broken: [(RuleFacts, RuleMiss); 8] = [
         (RuleFacts { is_reply: false, ..clean() }, RuleMiss::NotAReply),
         (RuleFacts { owner_wrote_in_thread: false, ..clean() }, RuleMiss::OwnerNotInThread),
         (RuleFacts { from_receiving_account: false, ..clean() }, RuleMiss::OtherAccount),
         (RuleFacts { unknown_recipients: vec!["a@example.com".into(), "b@example.com".into()], ..clean() }, RuleMiss::UnknownRecipients { count: 2 }),
+        (RuleFacts { outside_conversation: vec!["a@example.com".into()], ..clean() }, RuleMiss::OutsideConversation { count: 1 }),
         (RuleFacts { attachments: 1, ..clean() }, RuleMiss::HasAttachments),
         (RuleFacts { checks: 1, ..clean() }, RuleMiss::SendChecks),
         (RuleFacts { sent_today: 20, ..clean() }, RuleMiss::DailyLimit),
@@ -429,5 +431,6 @@ fn a_clean_reply_needs_no_code_and_each_rule_missed_says_so() {
     let many = RuleFacts { attachments: 2, sent_today: 99, ..clean() };
     assert_eq!(rules::misses(&many), [RuleMiss::HasAttachments, RuleMiss::DailyLimit]);
     assert_eq!(serde_json::to_value(RuleMiss::UnknownRecipients { count: 3 }).unwrap(), json!({"rule": "unknownRecipients", "count": 3}));
+    assert_eq!(serde_json::to_value(RuleMiss::OutsideConversation { count: 2 }).unwrap(), json!({"rule": "outsideConversation", "count": 2}));
     assert_eq!(serde_json::to_value(RuleMiss::OwnerNotInThread).unwrap(), json!({"rule": "ownerNotInThread"}));
 }

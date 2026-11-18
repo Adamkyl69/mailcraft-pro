@@ -1825,7 +1825,7 @@ count	occurrences	opakovaní
 	Receiving	Prijímanie
 # File › Options › Connected apps
 	6-digit code	6-miestny kód
-	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Odpoveď v konverzácii, do ktorej ste sami písali, z účtu, na ktorý prišla, ľuďom, ktorým ste už písali alebo ktorých máte uložených v kontaktoch, bez príloh a bez ničoho, na čo by vás MailCraft upozornil.
+	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	Odpoveď v konverzácii, do ktorej ste sami písali, z účtu, na ktorý prišla, ľuďom, ktorí už v konverzácii sú a ktorým ste už písali alebo ktorých máte uložených v kontaktoch, bez príloh a bez ničoho, na čo by vás MailCraft upozornil.
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	Aplikácie umelej inteligencie v tomto počítači, napríklad Claude Desktop a Claude Code, môžu čítať a usporadúvať vašu poštu v MailCrafte, kým beží. Každá aplikácia dostane vlastný token. Z iného počítača nie je dostupné nič.
 	Allow connected apps	Povoliť pripojené aplikácie
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	Aplikácia umelej inteligencie, ktorá dokáže spúšťať príkazy shellu, môže tieto ochrany obísť: príkazy jej shellu držte za jej žiadosťami o povolenie.

@@ -111,6 +111,7 @@ impl Session {
             owner_wrote_in_thread: false,
             from_receiving_account: from_receiving,
             unknown_recipients: Vec::new(),
+            outside_conversation: Vec::new(),
             attachments: c.attachments.len(),
             checks: checks.len(),
             sent_today: if settings.sent_today.0 == today { settings.sent_today.1 } else { 0 },
@@ -119,6 +120,7 @@ impl Session {
         let facts = RuleFacts {
             owner_wrote_in_thread: wanted.reply.as_ref().is_some_and(|k| self.owner_wrote_in_thread(k)),
             unknown_recipients: self.written_to_before(&recipients),
+            outside_conversation: wanted.reply.as_ref().map(|k| self.outside_message(k, &recipients)).unwrap_or_default(),
             ..facts
         };
         let misses = rules::misses(&facts);

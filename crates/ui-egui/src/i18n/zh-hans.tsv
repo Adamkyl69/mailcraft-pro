@@ -1821,7 +1821,7 @@ count	occurrences	次
 	Receiving	接收
 # File › Options › Connected apps
 	6-digit code	6 位验证码
-	A reply in a conversation you've written in, from the account it came to, to people you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	在你也发过言的会话中，从收到该邮件的账户，回复给你写过信或已保存为联系人的人，不带附件，也没有 MailCraft 会提醒的内容。
+	A reply in a conversation you've written in, from the account it came to, to people already in the conversation whom you've written to or saved as contacts, with no attachments, and nothing MailCraft would warn about.	在你也发过言的会话中，从收到该邮件的账户，回复给已在会话中、且你写过信或已保存为联系人的人，不带附件，也没有 MailCraft 会提醒的内容。
 	AI apps on this computer, such as Claude Desktop and Claude Code, can read and organize your mail in MailCraft while it's running. Each app gets a token of its own. Nothing is reachable from another computer.	此计算机上的 AI 应用（如 Claude Desktop 和 Claude Code）可以在 MailCraft 运行时读取和整理你的邮件。每个应用都有各自的令牌。其他计算机无法访问任何内容。
 	Allow connected apps	允许已连接的应用
 	An AI app that can run shell commands can get around these protections: keep its shell commands behind its permission prompts.	能够运行 shell 命令的 AI 应用可以绕过这些保护：请让它的 shell 命令保持在其权限提示之后。

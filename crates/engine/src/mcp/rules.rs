@@ -16,6 +16,9 @@ pub struct RuleFacts {
     /// Recipients the owner has never written to and has no saved contact for, lower-cased.
     /// Never logged.
     pub unknown_recipients: Vec<String>,
+    /// Recipients of a reply who aren't already in the message it answers (its From, Reply-To, To
+    /// and Cc, less the owner's own addresses), lower-cased. Never logged.
+    pub outside_conversation: Vec<String>,
     pub attachments: usize,
     /// How many things `Session::send_checks` found to look at.
     pub checks: usize,
@@ -32,6 +35,7 @@ pub enum RuleMiss {
     OwnerNotInThread,
     OtherAccount,
     UnknownRecipients { count: usize },
+    OutsideConversation { count: usize },
     HasAttachments,
     SendChecks,
     DailyLimit,
@@ -55,6 +59,9 @@ pub fn misses(f: &RuleFacts) -> Vec<RuleMiss> {
     }
     if !f.unknown_recipients.is_empty() {
         out.push(RuleMiss::UnknownRecipients { count: f.unknown_recipients.len() });
+    }
+    if f.is_reply && !f.outside_conversation.is_empty() {
+        out.push(RuleMiss::OutsideConversation { count: f.outside_conversation.len() });
     }
     if f.attachments > 0 {
         out.push(RuleMiss::HasAttachments);

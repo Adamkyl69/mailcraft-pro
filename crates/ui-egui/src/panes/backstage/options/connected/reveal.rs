@@ -45,10 +45,35 @@ fn quoted_for(word: &str, windows: bool) -> String {
     if !word.is_empty() && word.chars().all(safe) {
         word.to_string()
     } else if windows {
-        format!("\"{}\"", word.replace('"', "\\\""))
+        format!("\"{}\"", windows_escaped(word))
     } else {
         format!("'{}'", word.replace('\'', "'\\''"))
     }
+}
+
+/// `word` for inside double quotes as Windows programs read their command line (the rules of
+/// `CommandLineToArgvW`): a `"` is `\"`, and the backslashes before a `"`, or before the closing
+/// quote (a folder ending in `\`), are doubled so they don't escape it.
+fn windows_escaped(word: &str) -> String {
+    let mut out = String::new();
+    let mut slashes = 0;
+    for c in word.chars() {
+        match c {
+            '\\' => slashes += 1,
+            '"' => {
+                out.push_str(&"\\".repeat(slashes * 2 + 1));
+                out.push('"');
+                slashes = 0;
+            }
+            _ => {
+                out.push_str(&"\\".repeat(slashes));
+                out.push(c);
+                slashes = 0;
+            }
+        }
+    }
+    out.push_str(&"\\".repeat(slashes * 2));
+    out
 }
 
 /// The line that adds MailCraft to Claude Code.
@@ -152,6 +177,70 @@ mod tests {
         assert_eq!(quoted_for("/home/it's/x", false), r"'/home/it'\''s/x'");
         assert_eq!(quoted_for("", false), "''");
         assert_eq!(quoted_for("/usr/bin/cli", false), "/usr/bin/cli");
+    }
+
+    /// What a Windows program (Claude Code's `claude.exe`) makes of a command line: the rules of
+    /// `CommandLineToArgvW`, for the arguments after the program name.
+    fn windows_args(line: &str) -> Vec<String> {
+        let (mut args, mut cur, mut quoted, mut started) = (Vec::new(), String::new(), false, false);
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        while i < chars.len() {
+            let c = chars[i];
+            if c == '\\' {
+                let n = chars[i..].iter().take_while(|&&c| c == '\\').count();
+                i += n;
+                started = true;
+                if chars.get(i) == Some(&'"') {
+                    cur.push_str(&"\\".repeat(n / 2));
+                    if n % 2 == 1 {
+                        cur.push('"');
+                        i += 1;
+                    }
+                } else {
+                    cur.push_str(&"\\".repeat(n));
+                }
+                continue;
+            }
+            match c {
+                '"' => {
+                    quoted = !quoted;
+                    started = true;
+                }
+                ' ' if !quoted => {
+                    if started {
+                        args.push(std::mem::take(&mut cur));
+                        started = false;
+                    }
+                }
+                _ => {
+                    cur.push(c);
+                    started = true;
+                }
+            }
+            i += 1;
+        }
+        if started {
+            args.push(cur);
+        }
+        args
+    }
+
+    /// The `claude mcp add` line for a Windows path with spaces and backslashes: cmd and
+    /// PowerShell both pass a double-quoted word on as one argument, as `claude.exe` reads it
+    /// back whole, also for a folder ending in a backslash.
+    #[test]
+    fn the_windows_claude_code_line_reads_back_as_the_same_arguments() {
+        let program = r"C:\Program Files\MailCraft\mailcraft-cli.exe";
+        for data in [r"D:\my mail", r"D:\my mail\", r"\\server\share\my mail\", r#"D:\"quoted" mail\"#] {
+            let b = bridge(program, &["mcp", "--data", data]);
+            let args: Vec<String> = b.args_with_token("mcp_x").iter().map(|a| quoted_for(a, true)).collect();
+            let line = format!("{} {}", quoted_for(&b.program, true), args.join(" "));
+            let want = vec![program.to_string(), "mcp".into(), "--data".into(), data.to_string()];
+            assert_eq!(windows_args(&line), want, "{line}");
+        }
+        let b = bridge(program, &["mcp"]);
+        assert_eq!(quoted_for(&b.program, true), r#""C:\Program Files\MailCraft\mailcraft-cli.exe""#, "double quotes: cmd has no others");
     }
 
     #[test]

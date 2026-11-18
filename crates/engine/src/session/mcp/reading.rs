@@ -115,9 +115,12 @@ impl Session {
     }
 
     fn read_raw(&mut self, key: &MessageKey, raw: &[u8], headers: bool) -> Result<Value, String> {
-        let (shown, security) = self.unwrap(key, raw);
-        if security.as_ref().and_then(|s| s.lock.as_ref()).is_some_and(|l| !matches!(l, Lock::Open { .. })) {
-            return Ok(json!({"key": key.to_id(), "encrypted": true, "text": null}));
+        // No side effects: no keys learned from the message, no decryption asked for (a smart
+        // card's PIN prompt), nothing remembered. An encrypted message is opened in MailCraft.
+        let (shown, locked) = self.unwrap_quiet(key, raw);
+        if locked {
+            let note = "this message is encrypted: open it in MailCraft first (it asks for your key), then read it again";
+            return Ok(json!({"key": key.to_id(), "encrypted": true, "text": null, "note": note}));
         }
         let parsed = self.parse_for_reading(key, &shown).ok_or_else(|| "that message can't be read".to_string())?;
         let warning = self.message_warning(key, &parsed.from, parsed.bulk);

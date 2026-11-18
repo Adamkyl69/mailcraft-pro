@@ -87,6 +87,30 @@ impl Session {
         (std::borrow::Cow::Owned(cur), any.then_some(sec))
     }
 
+    /// What `raw` shows as far as it can be shown with nothing asked, learned or remembered (for
+    /// an AI app's read, which must have no side effects): an encryption already decrypted is
+    /// taken off, one not decrypted yet stays, no keys are learned from the message, no
+    /// decryption is queued (so no PIN or smart-card prompt) and no signature is checked. With it,
+    /// whether it is still encrypted.
+    pub(crate) fn unwrap_quiet(&self, key: &MessageKey, raw: &[u8]) -> (Vec<u8>, bool) {
+        if !mime::smime::is_protected(raw) {
+            return (raw.to_vec(), false);
+        }
+        let (shown, _, _) = self.as_written(key, raw.to_vec());
+        let locked = match mime::smime::protection(&shown) {
+            mime::smime::Protection::Encrypted(_) => true,
+            mime::smime::Protection::None => match mime::pgp::protection(&shown) {
+                mime::pgp::Protection::Encrypted(_) => true,
+                mime::pgp::Protection::Inline { body, .. } => {
+                    matches!(mailcraft_pgp::inline(&body), Some(mailcraft_pgp::Inline::Message(block)) if mailcraft_pgp::is_encrypted(block))
+                }
+                _ => false,
+            },
+            _ => false,
+        };
+        (shown, locked)
+    }
+
     /// A message as it reads: what [`Session::unwrap`] shows, without checking anything again.
     pub fn readable_raw(&self, key: &MessageKey) -> Option<Vec<u8>> {
         Some(self.as_written(key, self.body_raw(key)?).0)

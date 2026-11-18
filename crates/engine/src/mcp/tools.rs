@@ -278,6 +278,7 @@ fn read_output() -> Value {
         "text": {"type": ["string", "null"]},
         "truncated": {"type": "boolean"},
         "encrypted": {"type": "boolean"},
+        "note": {"type": "string"},
         "attachments": {"type": "array", "items": {"type": "object"}},
         "external": {"type": "boolean"},
         "warning": {"type": ["object", "null"]},

@@ -488,3 +488,60 @@ fn big_signed_message_as_written() {
     }
     println!("MEASURE a {} MB PGP/MIME signed message as written: {:.1} ms", raw.len() >> 20, t.elapsed().as_secs_f64() * 1000.0 / f64::from(ROUNDS));
 }
+
+/// What an AI app's `mail_read` of message `key` answers (as `structuredContent`).
+fn ai_reads(s: &mut Session, key: &mailcraft_model::MessageKey) -> Value {
+    let t = crate::mcp::tokens::make_token(&[7u8; 32]).unwrap();
+    s.mcp_seed_token(&t, &[crate::mcp::Permission::Read]);
+    let ask = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "mail_read", "arguments": {"key": key.to_id()}}});
+    let crate::McpOutcome::Reply(line) = s.mcp_handle(&t, &ask, 5_000) else { panic!("it answers at once") };
+    let answer: Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(answer["result"]["isError"], json!(false), "{answer}");
+    answer["result"]["structuredContent"].clone()
+}
+
+/// Put `raw` in the sample Inbox without opening it.
+fn filed(s: &mut Session, uid: u32, raw: &[u8]) -> mailcraft_model::MessageKey {
+    let key = mailcraft_model::MessageKey { uid, ..next_key(s, "sample", "INBOX") };
+    let summary = mailcraft_mime::summary_from_full(raw, key, mailcraft_model::Flags::default(), 0, s.clock.now);
+    file_in(s, summary, Some(raw))
+}
+
+/// An AI app's read learns no keys from the message and checks nothing.
+#[test]
+fn an_ai_reading_a_signed_message_learns_no_keys() {
+    let mut s = session("pgp-ai-read-signed");
+    let key = filed(&mut s, 9521, &signed_by_ana(true, &pgpdata("ana-part.txt")));
+    let read = ai_reads(&mut s, &key);
+    assert!(read["text"].as_str().unwrap().contains("the proof is approved"), "{read}");
+    assert!(s.pgp_settings("sample").known.is_empty(), "her Autocrypt key was not kept");
+    // Opened by the user, it is learned as ever.
+    s.run("folder.open", &json!({"account": "sample", "folder": "INBOX"})).unwrap();
+    s.run("list.open", &json!({"key": key.to_id()})).unwrap();
+    assert!(s.pgp_settings("sample").known.contains_key("ana@posteo.example"));
+}
+
+/// An AI app's read of an encrypted message asks for no decryption (no PIN prompt) and says to open it
+/// in MailCraft; once opened there, it reads.
+#[test]
+fn an_ai_reading_an_encrypted_message_asks_for_no_decryption() {
+    let mut s = with_key("pgp-ai-read-encrypted");
+    let armored = String::from_utf8(pgpdata("ana-to-riley.asc")).unwrap();
+    let body = format!(
+        "--enc\r\nContent-Type: application/pgp-encrypted\r\n\r\nVersion: 1\r\n\r\n--enc\r\nContent-Type: application/octet-stream; name=\"encrypted.asc\"\r\n\r\n{armored}\r\n--enc--\r\n"
+    );
+    let raw = from_ana(true, "multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"enc\"", &body);
+    let key = filed(&mut s, 9522, &raw);
+    s.take_jobs();
+    let read = ai_reads(&mut s, &key);
+    assert_eq!((read["encrypted"].clone(), read["text"].clone()), (json!(true), Value::Null), "{read}");
+    assert!(read["note"].as_str().unwrap().contains("open it in MailCraft"), "{read}");
+    assert!(s.take_jobs().is_empty(), "no decryption was queued");
+    assert!(s.pgp_settings("sample").known.is_empty());
+    // The user opens it (and answers the key's prompt): now it reads.
+    s.run("folder.open", &json!({"account": "sample", "folder": "INBOX"})).unwrap();
+    s.run("list.open", &json!({"key": key.to_id()})).unwrap();
+    answer_decrypt(&mut s);
+    let read = ai_reads(&mut s, &key);
+    assert!(read["text"].as_str().unwrap().contains("the proof is approved"), "{read}");
+}

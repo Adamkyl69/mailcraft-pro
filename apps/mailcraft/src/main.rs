@@ -35,6 +35,7 @@ use startup::{args, logfile, portable, single_instance};
 use window::{ClipboardKeys, app_icon, clipboard_files, drag_out, read_clipboard};
 use window::{display, graphics};
 
+mod appimage;
 mod desktop;
 mod platform;
 mod self_update;

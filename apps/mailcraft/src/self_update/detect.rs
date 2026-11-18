@@ -41,7 +41,7 @@ pub(super) fn unix_kind(exe: &Path, p: &Probe) -> Option<Kind> {
         // MailCraft started by another AppImage (a browser's `mailto:` link) put its update over
         // that one's file. MailCraft's own runs from inside its image (`APPDIR`).
         if let Some(image) = (p.env)("APPIMAGE").filter(|i| (p.file)(i))
-            && runs_from_image(exe, (p.env)("APPDIR").as_deref(), p.canonical)
+            && crate::appimage::runs_from_image(exe, (p.env)("APPDIR").as_deref(), p.canonical)
         {
             if !image.parent().is_some_and(|d| (p.writable)(d)) {
                 log::info!("updates: {} is in a folder this user can't write, so it isn't replaced", image.display());
@@ -66,15 +66,6 @@ pub(super) fn unix_kind(exe: &Path, p: &Probe) -> Option<Kind> {
         return None;
     }
     Some(Kind::Tarball(root.to_path_buf()))
-}
-
-/// Whether `exe` runs from the AppImage mounted at `appdir`; anything unclear counts as not. One
-/// inherited from another program then goes on to the checks below: this copy is updated as
-/// what it is (a package, the tarball), or not at all, never over that program's file.
-fn runs_from_image(exe: &Path, appdir: Option<&Path>, canonical: &dyn Fn(&Path) -> Option<PathBuf>) -> bool {
-    let Some(appdir) = appdir.filter(|d| d.has_root()).and_then(canonical) else { return false };
-    // No image is mounted at the root, where every program would count as inside it.
-    appdir.parent().is_some() && exe.starts_with(&appdir)
 }
 
 /// Whether the package tool of `kind` has MailCraft installed (`dpkg-query`, `rpm -q`).

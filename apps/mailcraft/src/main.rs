@@ -331,7 +331,8 @@ fn main() -> eframe::Result {
             launch.chosen || launch.portable.dir.is_some(),
             &desktop::start::Packaging {
                 appimage: std::env::var_os("APPIMAGE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
-                flatpak_id: std::env::var("FLATPAK_ID").ok().as_deref(),
+                appdir: std::env::var_os("APPDIR").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
+                flatpak_id: mailcraft_engine::store::flatpak_app_id().as_deref(),
                 macos: cfg!(target_os = "macos"),
             },
         ),

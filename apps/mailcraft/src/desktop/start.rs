@@ -28,7 +28,9 @@ fn random(n: usize) -> Option<Vec<u8>> {
 pub(crate) struct Packaging<'a> {
     /// `$APPIMAGE`, set by an AppImage's runtime to the file itself.
     pub(crate) appimage: Option<&'a std::path::Path>,
-    /// `$FLATPAK_ID`, set in a Flatpak sandbox to the app's id.
+    /// `$APPDIR`, the folder the AppImage is mounted at.
+    pub(crate) appdir: Option<&'a std::path::Path>,
+    /// The app's id in a Flatpak sandbox ([`mailcraft_engine::store::flatpak_app_id`]).
     pub(crate) flatpak_id: Option<&'a str>,
     /// A macOS build.
     pub(crate) macos: bool,
@@ -54,21 +56,23 @@ pub(crate) fn bridge_command(
     packaging: &Packaging,
 ) -> Option<mailcraft_engine::mcp::BridgeCommand> {
     use mailcraft_engine::mcp::BridgeCommand;
-    let Packaging { appimage, flatpak_id, macos } = *packaging;
+    let Packaging { appimage, appdir, flatpak_id, macos } = *packaging;
     let mut args = vec!["mcp".to_string()];
     if let Some(root) = root.filter(|_| pass_data) {
         args.push("--data".into());
         args.push(root.to_string_lossy().into_owned());
     }
-    // An application id is letters, digits, dots, dashes and underscores; anything else is no id.
-    let plain = |id: &&str| !id.is_empty() && !id.starts_with(['.', '-']) && id.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c));
-    if let Some(id) = flatpak_id.filter(plain) {
+    if let Some(id) = flatpak_id {
         let head = ["run", "--command=mailcraft-cli", id].map(str::to_string);
         return Some(BridgeCommand { program: "flatpak".into(), args: head.into_iter().chain(args).collect() });
     }
     let name = if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" };
     let beside = exe.and_then(std::path::Path::parent).map(|dir| dir.join(name)).filter(|p| p.is_file());
-    let appimage = appimage.filter(|p| p.is_absolute() && p.is_file());
+    // `$APPIMAGE` is passed on by an AppImage to the programs it starts (a browser's `mailto:`
+    // link), so it is trusted only for a MailCraft that runs from inside its own image.
+    let appimage = appimage.filter(|p| {
+        p.is_absolute() && p.is_file() && exe.is_some_and(|e| crate::appimage::runs_from_image(e, appdir, &|d| std::fs::canonicalize(d).ok()))
+    });
     if macos && appimage.is_none() && beside.is_none() {
         return None;
     }
@@ -165,51 +169,66 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("mailcraft-start-{}-bridge", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
+        let dir = std::fs::canonicalize(&dir).unwrap();
         let exe = dir.join("mailcraft");
         let root = dir.join("data");
         let by_name = |args: &[&str]| mailcraft_engine::mcp::BridgeCommand {
             program: "mailcraft-cli".into(),
             args: args.iter().map(|a| a.to_string()).collect(),
         };
-        assert_eq!(bc(Some(&exe), Some(&root), false, None, None), by_name(&["mcp"]), "none beside it: found by name");
-        assert_eq!(bc(None, None, true, None, None), by_name(&["mcp"]), "no folder to name");
+        assert_eq!(bc(Some(&exe), Some(&root), false, None, None, None), by_name(&["mcp"]), "none beside it: found by name");
+        assert_eq!(bc(None, None, true, None, None, None), by_name(&["mcp"]), "no folder to name");
         let cli = dir.join(if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" });
         std::fs::write(&cli, b"").unwrap();
-        let with = bc(Some(&exe), Some(&root), true, None, None);
+        let with = bc(Some(&exe), Some(&root), true, None, None, None);
         assert_eq!(with.program, cli.to_string_lossy());
         assert_eq!(with.args, ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()]);
-        assert_eq!(bc(Some(&exe), Some(&root), false, None, None).args, ["mcp"], "the default folder needs none");
+        assert_eq!(bc(Some(&exe), Some(&root), false, None, None, None).args, ["mcp"], "the default folder needs none");
 
         // From an AppImage: the file itself (its AppRun takes `mcp`), not the temporary mount's
         // copy beside the running program.
         let image = dir.join("MailCraft.AppImage");
         std::fs::write(&image, b"").unwrap();
-        let from_image = bc(Some(&exe), Some(&root), true, Some(&image), None);
+        let from_image = bc(Some(&exe), Some(&root), true, Some(&image), Some(&dir), None);
         assert_eq!(from_image.program, image.to_string_lossy());
         assert_eq!(from_image.args, with.args, "the --data rule is the same");
-        assert_eq!(bc(Some(&exe), None, false, Some(&image), None).args, ["mcp"]);
+        assert_eq!(bc(Some(&exe), None, false, Some(&image), Some(&dir), None).args, ["mcp"]);
         let gone = dir.join("moved.AppImage");
-        assert_eq!(bc(Some(&exe), None, false, Some(&gone), None).program, cli.to_string_lossy(), "a file that isn't there is not used");
+        assert_eq!(bc(Some(&exe), None, false, Some(&gone), Some(&dir), None).program, cli.to_string_lossy(), "a file that isn't there is not used");
         assert_eq!(
-            bc(None, None, false, Some(std::path::Path::new("MailCraft.AppImage")), None),
+            bc(None, None, false, Some(std::path::Path::new("MailCraft.AppImage")), Some(&dir), None),
             by_name(&["mcp"]),
             "a relative path would depend on where the app runs"
         );
 
+        // An AppImage's `$APPIMAGE` is passed on to what it starts: a MailCraft that is not inside
+        // that image (a package's, started by another AppImage) doesn't use it.
+        let other = dir.join("other");
+        std::fs::create_dir_all(&other).unwrap();
+        let elsewhere = bc(Some(&exe), Some(&root), true, Some(&image), Some(&other), None);
+        assert_eq!(elsewhere.program, cli.to_string_lossy(), "outside that image: the CLI beside it");
+        assert_eq!(bc(Some(&empty_beside(&dir)), None, false, Some(&image), Some(&other), None), by_name(&["mcp"]), "or the bare name");
+        assert_eq!(bc(Some(&exe), None, false, Some(&image), None, None).program, cli.to_string_lossy(), "no APPDIR: not in an image");
+        assert_eq!(bc(None, None, false, Some(&image), Some(&dir), None), by_name(&["mcp"]), "no program path: not in an image");
+        assert_eq!(
+            bc(Some(&exe), None, false, Some(&image), Some(std::path::Path::new("/")), None).program,
+            cli.to_string_lossy(),
+            "no image is mounted at /"
+        );
+
         // In a Flatpak: the host runs it through flatpak, whatever is beside the program.
         let id = "io.github.zidan44.MailCraft";
-        let sandboxed = bc(Some(&exe), Some(&root), false, None, Some(id));
+        let sandboxed = bc(Some(&exe), Some(&root), false, None, None, Some(id));
         assert_eq!(sandboxed.program, "flatpak");
         assert_eq!(sandboxed.args, ["run", "--command=mailcraft-cli", id, "mcp"]);
-        let with_data = bc(None, Some(&root), true, Some(&image), Some(id));
+        let with_data = bc(None, Some(&root), true, Some(&image), Some(&dir), Some(id));
         assert_eq!(with_data.args[3..], ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()], "the --data rule is the same");
-        for odd in ["", "-x", ".x", "a b", "a/b", "x;rm"] {
-            assert_eq!(bc(None, None, false, None, Some(odd)), by_name(&["mcp"]), "{odd:?} is no application id");
-        }
 
         // macOS: the CLI is not in the dmg, so no command unless it is beside the app (or the
         // app is run from a place that has it).
-        let mac = |exe: Option<&std::path::Path>| bridge_command(exe, None, false, &Packaging { appimage: None, flatpak_id: None, macos: true });
+        let mac = |exe: Option<&std::path::Path>| {
+            bridge_command(exe, None, false, &Packaging { appimage: None, appdir: None, flatpak_id: None, macos: true })
+        };
         assert_eq!(mac(Some(&exe)).map(|b| b.program), Some(cli.to_string_lossy().into_owned()), "beside the app: as on every system");
         let empty = dir.join("empty");
         std::fs::create_dir_all(&empty).unwrap();
@@ -223,9 +242,17 @@ mod tests {
         root: Option<&std::path::Path>,
         pass_data: bool,
         appimage: Option<&std::path::Path>,
+        appdir: Option<&std::path::Path>,
         flatpak_id: Option<&str>,
     ) -> mailcraft_engine::mcp::BridgeCommand {
-        bridge_command(exe, root, pass_data, &Packaging { appimage, flatpak_id, macos: false }).unwrap()
+        bridge_command(exe, root, pass_data, &Packaging { appimage, appdir, flatpak_id, macos: false }).unwrap()
+    }
+
+    /// A program path in a folder with no `mailcraft-cli` beside it.
+    fn empty_beside(dir: &std::path::Path) -> std::path::PathBuf {
+        let empty = dir.join("empty-beside");
+        std::fs::create_dir_all(&empty).unwrap();
+        empty.join("mailcraft")
     }
 
     /// The session carries what MCP needs of this computer: random bytes, the log, the bridge.

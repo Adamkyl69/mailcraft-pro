@@ -58,15 +58,28 @@ fn scratch_folders_are_the_users_own() {
 }
 
 /// In a Flatpak the socket's folder is the one all instances of the app share; elsewhere the
-/// runtime folder as before, and an odd id is not followed.
+/// runtime folder as before.
 #[test]
 fn a_flatpak_shares_its_runtime_folder_between_instances() {
     let run = || PathBuf::from("/run/user/1000");
     assert_eq!(flatpak_runtime(run(), Some("io.github.zidan44.MailCraft")), PathBuf::from("/run/user/1000/app/io.github.zidan44.MailCraft"));
     assert_eq!(flatpak_runtime(run(), None), run());
-    for odd in ["", ".", "..", "../x", "a/b", "a b", ".hidden"] {
-        assert_eq!(flatpak_runtime(run(), Some(odd)), run(), "{odd:?}");
+}
+
+/// `FLATPAK_ID` counts only inside a sandbox (it is inherited by programs a sandboxed app starts
+/// on the host), and only as an application id.
+#[test]
+fn the_flatpak_id_is_followed_only_inside_a_sandbox_and_only_as_an_app_id() {
+    let id = "io.github.zidan44.MailCraft";
+    assert_eq!(flatpak_app_id_in(Some(id), true).as_deref(), Some(id), "in the sandbox");
+    assert_eq!(flatpak_app_id_in(Some(id), false), None, "inherited on the host");
+    assert_eq!(flatpak_app_id_in(None, true), None, "no id");
+    for odd in ["", ".", "..", "../x", "a/b", "a b", ".hidden.x.y", "-x.y.z", "a.-b.c", "a..b", "org.app", "org", "a.b.c/", "a.b.c\n", "../../a.b.c"]
+    {
+        assert_eq!(flatpak_app_id_in(Some(odd), true), None, "{odd:?}");
     }
+    assert_eq!(flatpak_app_id_in(Some("org.gnome.Calculator"), true).as_deref(), Some("org.gnome.Calculator"));
+    assert_eq!(flatpak_app_id_in(Some("com.example.My_App-2"), true).as_deref(), Some("com.example.My_App-2"));
 }
 
 pub(crate) fn temp_store(name: &str) -> Store {

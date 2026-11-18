@@ -396,7 +396,7 @@ pub fn default_root() -> Option<PathBuf> {
 pub fn scratch_dir(name: &str) -> Option<PathBuf> {
     let dir = if cfg!(all(unix, not(target_os = "macos"))) {
         let runtime = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).filter(|p| p.is_absolute());
-        let runtime = runtime.map(|r| flatpak_runtime(r, std::env::var("FLATPAK_ID").ok().as_deref()));
+        let runtime = runtime.map(|r| flatpak_runtime(r, flatpak_app_id().as_deref()));
         let own = [runtime, dirs::cache_dir()].into_iter().flatten().find_map(|base| {
             let own = base.join("mailcraft");
             fs::create_dir_all(&own).ok()?;
@@ -415,13 +415,30 @@ pub fn scratch_dir(name: &str) -> Option<PathBuf> {
     Some(dir)
 }
 
-/// The runtime folder to use: in a Flatpak (`flatpak_id` is `$FLATPAK_ID`), the one every instance
-/// of the app shares, `app/<id>` inside it; else `runtime` as it is. An id that isn't a plain
-/// application id (letters, digits, `.`, `-`, `_`, not starting with a dot) is not followed.
+/// This app's Flatpak id, `Some` only inside a Flatpak's sandbox (`/.flatpak-info` is there) and
+/// only for a plain application id. `FLATPAK_ID` alone is not enough: it can be inherited from a
+/// sandboxed app that started this program on the host, and following it would put files in
+/// that app's folders. The one check for both the socket's folder ([`scratch_dir`]) and the
+/// command AI apps start the bridge with.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn flatpak_app_id() -> Option<String> {
+    flatpak_app_id_in(std::env::var("FLATPAK_ID").ok().as_deref(), Path::new("/.flatpak-info").exists())
+}
+
+/// [`flatpak_app_id`] for the given `$FLATPAK_ID` and whether the sandbox's marker file is there.
+/// An application id is three or more names joined by dots (`io.github.zidan44.MailCraft`), each
+/// of letters, digits, `_` and `-`, not starting with `-`: no slash, `..` or empty name.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn flatpak_app_id_in(id: Option<&str>, in_sandbox: bool) -> Option<String> {
+    let name = |n: &str| !n.is_empty() && !n.starts_with('-') && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+    id.filter(|id| in_sandbox && id.split('.').count() >= 3 && id.split('.').all(name)).map(str::to_string)
+}
+
+/// The runtime folder to use: in a Flatpak (`flatpak_id` is [`flatpak_app_id`]), the one every
+/// instance of the app shares, `app/<id>` inside it; else `runtime` as it is.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn flatpak_runtime(runtime: PathBuf, flatpak_id: Option<&str>) -> PathBuf {
-    let plain = |id: &&str| !id.is_empty() && !id.starts_with('.') && id.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c));
-    match flatpak_id.filter(plain) {
+    match flatpak_id {
         Some(id) => runtime.join("app").join(id),
         None => runtime,
     }

@@ -14,7 +14,7 @@ fn bridge_of(s: &Session) -> BridgeCommand {
 /// by hand so the command comes first, as people read it).
 pub(super) fn desktop_snippet(b: &BridgeCommand, token: &str) -> String {
     let text = |s: &str| serde_json::to_string(s).unwrap_or_default();
-    let args: Vec<String> = b.args.iter().map(|a| format!("        {}", text(a))).collect();
+    let args: Vec<String> = b.args_with_token(token).iter().map(|a| format!("        {}", text(a))).collect();
     [
         "{".to_string(),
         "  \"mcpServers\": {".to_string(),
@@ -53,7 +53,7 @@ fn quoted_for(word: &str, windows: bool) -> String {
 
 /// The line that adds MailCraft to Claude Code.
 pub(super) fn code_snippet(b: &BridgeCommand, token: &str) -> String {
-    let args: Vec<String> = b.args.iter().map(|a| quoted(a)).collect();
+    let args: Vec<String> = b.args_with_token(token).iter().map(|a| quoted(a)).collect();
     format!("claude mcp add mailcraft --env MAILCRAFT_MCP_TOKEN={token} -- {} {}", quoted(&b.program), args.join(" "))
 }
 
@@ -126,6 +126,21 @@ mod tests {
             let spaced = code_snippet(&bridge("/opt/Mail Craft/mailcraft-cli", &["mcp", "--data", "/home/me/my mail"]), "mcp_x");
             assert!(spaced.ends_with("-- '/opt/Mail Craft/mailcraft-cli' mcp --data '/home/me/my mail'"), "{spaced}");
         }
+    }
+
+    /// A Flatpak's bridge gets the token as an argument, since `flatpak run` doesn't pass the
+    /// environment on; both snippets carry it there and in the environment.
+    #[test]
+    fn the_token_goes_where_the_command_asks_for_it() {
+        let b = bridge(
+            "flatpak",
+            &["run", "--command=mailcraft-cli", mailcraft_engine::mcp::TOKEN_PLACEHOLDER_ARG, "io.github.zidan44.MailCraft", "mcp"],
+        );
+        let v: Value = serde_json::from_str(&desktop_snippet(&b, "mcp_x")).unwrap_or_default();
+        assert_eq!(v["mcpServers"]["mailcraft"]["args"][2], "--env=MAILCRAFT_MCP_TOKEN=mcp_x");
+        let line = code_snippet(&b, "mcp_x");
+        assert!(line.contains("-- flatpak run --command=mailcraft-cli --env=MAILCRAFT_MCP_TOKEN=mcp_x io.github.zidan44.MailCraft mcp"), "{line}");
+        assert!(!line.contains("{MAILCRAFT"), "{line}");
     }
 
     #[test]

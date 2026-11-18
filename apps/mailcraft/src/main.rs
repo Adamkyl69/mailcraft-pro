@@ -330,6 +330,8 @@ fn main() -> eframe::Result {
             launch.chosen || launch.portable.dir.is_some(),
             // Set by the AppImage's runtime to the file itself.
             std::env::var_os("APPIMAGE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
+            // Set in a Flatpak sandbox to the app's id.
+            std::env::var("FLATPAK_ID").ok().as_deref(),
         )),
     };
     // The data files open on a thread of their own, and the session is made there from them,

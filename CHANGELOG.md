@@ -27,6 +27,7 @@ on GitHub.
 ### Fixed
 
 - Connected apps from the AppImage: the snippets name the AppImage file itself (its `mcp` entry starts the bridge) instead of a path inside the temporary mount, which changed on every launch.
+- Connected apps from the Flatpak: the snippets run `flatpak run --command=mailcraft-cli` on the computer (the program inside the sandbox can't be run from outside it), with the token given as an `--env=` argument, and the running MailCraft's socket is in the folder every instance of the app shares, so the bridge reaches it.
 - In the dark theme, the segment of a switch under the pointer (File › Options › Theme, Reading pane and the others) no longer looks chosen: it was lighter than the segment that was.
 
 ## 0.40.0 - 2026-11-17

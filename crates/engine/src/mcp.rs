@@ -101,9 +101,24 @@ pub struct LogQuery {
     pub errors_only: bool,
 }
 
-/// How an AI app starts the bridge, for the Settings card's snippets (set by the app).
+/// How an AI app starts the bridge, for the Settings card's snippets (set by the app). An
+/// argument that holds [`TOKEN_PLACEHOLDER`] gets the token there: a Flatpak's `flatpak run`
+/// doesn't pass the caller's environment on, so it is given as `--env=MAILCRAFT_MCP_TOKEN=…`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BridgeCommand {
     pub program: String,
     pub args: Vec<String>,
+}
+
+/// Where in a [`BridgeCommand`]'s arguments the snippets put the new token.
+pub const TOKEN_PLACEHOLDER: &str = "{MAILCRAFT_MCP_TOKEN}";
+
+/// The argument that gives a sandboxed bridge the token (`flatpak run … --env=…`).
+pub const TOKEN_PLACEHOLDER_ARG: &str = "--env=MAILCRAFT_MCP_TOKEN={MAILCRAFT_MCP_TOKEN}";
+
+impl BridgeCommand {
+    /// The arguments with `token` where [`TOKEN_PLACEHOLDER`] is.
+    pub fn args_with_token(&self, token: &str) -> Vec<String> {
+        self.args.iter().map(|a| a.replace(TOKEN_PLACEHOLDER, token)).collect()
+    }
 }

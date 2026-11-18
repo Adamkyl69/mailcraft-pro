@@ -388,12 +388,15 @@ pub fn default_root() -> Option<PathBuf> {
 /// links that a write would follow (PdfCraft and GridCraft found). There it is under
 /// `$XDG_RUNTIME_DIR` (the user's own, 0700) or the user's cache folder, owner-only: the cache
 /// also when the runtime folder can't be used (WSL can name one that isn't there, and no
-/// attachment opened or dragged out). Windows' and macOS's temporary folders are the user's
-/// already. `None` in the browser, or when it can't be made.
+/// attachment opened or dragged out). In a Flatpak the runtime folder is private to each running
+/// sandbox, but `$XDG_RUNTIME_DIR/app/$FLATPAK_ID` is shared by every instance of that one app, so
+/// the folder is under it ([`flatpak_runtime`]): a bridge started by an AI app reaches the running
+/// MailCraft. Windows' and macOS's temporary folders are the user's already. `None` in the browser, or when it can't be made.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn scratch_dir(name: &str) -> Option<PathBuf> {
     let dir = if cfg!(all(unix, not(target_os = "macos"))) {
         let runtime = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).filter(|p| p.is_absolute());
+        let runtime = runtime.map(|r| flatpak_runtime(r, std::env::var("FLATPAK_ID").ok().as_deref()));
         let own = [runtime, dirs::cache_dir()].into_iter().flatten().find_map(|base| {
             let own = base.join("mailcraft");
             fs::create_dir_all(&own).ok()?;
@@ -410,6 +413,18 @@ pub fn scratch_dir(name: &str) -> Option<PathBuf> {
     };
     fs::create_dir_all(&dir).ok()?;
     Some(dir)
+}
+
+/// The runtime folder to use: in a Flatpak (`flatpak_id` is `$FLATPAK_ID`), the one every instance
+/// of the app shares, `app/<id>` inside it; else `runtime` as it is. An id that isn't a plain
+/// application id (letters, digits, `.`, `-`, `_`, not starting with a dot) is not followed.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn flatpak_runtime(runtime: PathBuf, flatpak_id: Option<&str>) -> PathBuf {
+    let plain = |id: &&str| !id.is_empty() && !id.starts_with('.') && id.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c));
+    match flatpak_id.filter(plain) {
+        Some(id) => runtime.join("app").join(id),
+        None => runtime,
+    }
 }
 
 /// No files in the browser.

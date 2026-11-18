@@ -57,6 +57,18 @@ fn scratch_folders_are_the_users_own() {
     let _ = fs::remove_dir(&a);
 }
 
+/// In a Flatpak the socket's folder is the one all instances of the app share; elsewhere the
+/// runtime folder as before, and an odd id is not followed.
+#[test]
+fn a_flatpak_shares_its_runtime_folder_between_instances() {
+    let run = || PathBuf::from("/run/user/1000");
+    assert_eq!(flatpak_runtime(run(), Some("io.github.zidan44.MailCraft")), PathBuf::from("/run/user/1000/app/io.github.zidan44.MailCraft"));
+    assert_eq!(flatpak_runtime(run(), None), run());
+    for odd in ["", ".", "..", "../x", "a/b", "a b", ".hidden"] {
+        assert_eq!(flatpak_runtime(run(), Some(odd)), run(), "{odd:?}");
+    }
+}
+
 pub(crate) fn temp_store(name: &str) -> Store {
     let dir = scratch(&format!("store-{name}"));
     Store::open(dir).unwrap()

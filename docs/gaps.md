@@ -105,6 +105,17 @@ Test builds update themselves ([how test builds update](updates.md)). These part
 - **Cause:** It needs an Etebase client of MailCraft's own: the Rust library EteSync publishes
   brings C libraries with it (OpenSSL and libsodium), which MailCraft doesn't build with.
 
+### 9. Connected apps on macOS
+
+- **Impact:** On a Mac, File › Options › Connected apps makes tokens but gives no snippet for
+  Claude Desktop or Claude Code: the `mailcraft-cli` that AI apps start comes in a zip of its own,
+  not inside the app.
+- **Workaround:** Download the CLI zip from the release (or build `mailcraft-cli`), and give the AI
+  app its full path as the command, with the argument `mcp` and the token in the environment
+  variable `MAILCRAFT_MCP_TOKEN`.
+- **Cause:** The macOS package doesn't put the CLI beside the app yet, so there is no program the
+  card could name that is certain to be there.
+
 ## Not planned
 
 These are outside MailCraft's control, or accepted as they are.

@@ -1837,6 +1837,7 @@ count	occurrences	kez
 	Expires {when}	Süresi {when} dolar
 	For Claude Code:	Claude Code için:
 	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop için, claude_desktop_config.json içinde:
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	MailCraft bu sistemde yapay zeka uygulamaları için köprüyü henüz pakete eklemiyor, bu yüzden kopyalanacak bir parça yok. Bilinen eksiklere bakın.
 	Last used {date}	Son kullanım {date}
 	Made {date}	Oluşturulma {date}
 	Make a token first	Önce bir belirteç oluşturun

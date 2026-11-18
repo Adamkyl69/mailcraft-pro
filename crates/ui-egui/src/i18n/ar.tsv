@@ -1832,6 +1832,7 @@ count	occurrences	مرات
 	Expires {when}	ينتهي {when}
 	For Claude Code:	لـ Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	لـ Claude Desktop، في claude_desktop_config.json:
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	لا تتضمن MailCraft جسر تطبيقات الذكاء الاصطناعي على هذا النظام بعد، لذا لا يوجد مقتطف للنسخ. راجع الثغرات المعروفة.
 	Last used {date}	آخر استخدام {date}
 	Made {date}	أُنشئ {date}
 	Make a token first	أنشئ رمزًا مميّزًا أولًا

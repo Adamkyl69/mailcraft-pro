@@ -1837,6 +1837,7 @@ count	occurrences	Terminen
 	Expires {when}	Läuft ab {when}
 	For Claude Code:	Für Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	Für Claude Desktop, in claude_desktop_config.json:
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	MailCraft liefert die Brücke für KI-Apps auf diesem System noch nicht mit, daher gibt es keinen Ausschnitt zum Kopieren. Siehe die bekannten Lücken.
 	Last used {date}	Zuletzt verwendet {date}
 	Made {date}	Erstellt {date}
 	Make a token first	Erstellen Sie zuerst ein Token

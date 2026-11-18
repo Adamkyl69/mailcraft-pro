@@ -60,6 +60,12 @@ pub(crate) fn tour(a: &mut MailApp, ctx: &egui::Context) {
     owner(a, "mcp.createToken", json!({"name": "Claude Desktop", "permissions": ["read", "organize"]}));
     options(ctx, a);
     owner(a, "mcp.dismissToken", json!({}));
+    // Where the app packages no bridge (macOS): the token, and a line saying why no snippet.
+    let bridge = a.session.mcp.bridge.take();
+    owner(a, "mcp.createToken", json!({"name": "Claude Desktop", "permissions": ["read"]}));
+    options(ctx, a);
+    owner(a, "mcp.dismissToken", json!({}));
+    a.session.mcp.bridge = bridge;
     owner(a, "mcp.setEnabled", json!({"on": true}));
     owner(a, "mcp.setupApproval", json!({}));
     options(ctx, a);

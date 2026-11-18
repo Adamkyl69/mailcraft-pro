@@ -5,11 +5,6 @@ use mailcraft_engine::mcp::BridgeCommand;
 
 use super::*;
 
-/// What starts the bridge when the app didn't say (a build run by hand): the CLI on the path.
-fn bridge_of(s: &Session) -> BridgeCommand {
-    s.mcp.bridge.clone().unwrap_or_else(|| BridgeCommand { program: "mailcraft-cli".into(), args: vec!["mcp".into()] })
-}
-
 /// `claude_desktop_config.json`'s entry for MailCraft, with the token in its environment (written
 /// by hand so the command comes first, as people read it).
 pub(super) fn desktop_snippet(b: &BridgeCommand, token: &str) -> String {
@@ -96,7 +91,6 @@ fn snippet(ui: &mut Ui, t: &Tokens, label: &str, code: &str, rows: usize) {
 /// Shown while the token is new, until Done: the app has it only from here.
 pub(super) fn new_token(s: &Session, t: &Tokens, ui: &mut Ui, acts: &mut Vec<Action>) {
     let Some(r) = &s.mcp.revealed else { return };
-    let bridge = bridge_of(s);
     egui::Frame::new().fill(t.accent_soft).corner_radius(8).inner_margin(12).show(ui, |ui| {
         ui.set_width(ui.available_width());
         ui.label(RichText::new(tl!("Copy this token now: it won't be shown again.")).font(theme::bold(13.0)).color(t.text));
@@ -109,9 +103,18 @@ pub(super) fn new_token(s: &Session, t: &Tokens, ui: &mut Ui, acts: &mut Vec<Act
                 ui.ctx().copy_text(r.token.clone());
             }
         });
-        let desktop = desktop_snippet(&bridge, &r.token);
-        snippet(ui, t, tl!("For Claude Desktop, in claude_desktop_config.json:"), &desktop, desktop.lines().count().min(12));
-        snippet(ui, t, tl!("For Claude Code:"), &code_snippet(&bridge, &r.token), 3);
+        // No snippet where the app packages no bridge (a macOS build: `docs/gaps.md`): one that
+        // names a program that isn't there would fail in the AI app, far from here.
+        if let Some(bridge) = &s.mcp.bridge {
+            let desktop = desktop_snippet(bridge, &r.token);
+            snippet(ui, t, tl!("For Claude Desktop, in claude_desktop_config.json:"), &desktop, desktop.lines().count().min(12));
+            snippet(ui, t, tl!("For Claude Code:"), &code_snippet(bridge, &r.token), 3);
+        } else {
+            ui.add_space(6.0);
+            let unpackaged =
+                tl!("MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.");
+            ui.add(egui::Label::new(RichText::new(unpackaged).color(t.text).size(12.5)).wrap());
+        }
         ui.add_space(4.0);
         // Decision 1: a program that can run shell commands as the user can go round the protections.
         let warning =

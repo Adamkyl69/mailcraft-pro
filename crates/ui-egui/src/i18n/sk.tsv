@@ -1837,6 +1837,7 @@ count	occurrences	opakovaní
 	Expires {when}	Platnosť vyprší {when}
 	For Claude Code:	Pre Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	Pre Claude Desktop v súbore claude_desktop_config.json:
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.	MailCraft zatiaľ v tomto systéme nedodáva most pre aplikácie s AI, preto nie je čo kopírovať. Pozrite si známe medzery.
 	Last used {date}	Naposledy použité {date}
 	Made {date}	Vytvorené {date}
 	Make a token first	Najprv vytvorte token

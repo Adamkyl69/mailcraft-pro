@@ -324,15 +324,16 @@ fn main() -> eframe::Result {
         clock: Clock::new(now, offset),
         portable: launch.portable.dir.is_some(),
         build_sha: build_sha.clone(),
-        mcp_bridge: Some(desktop::start::bridge_command(
+        mcp_bridge: desktop::start::bridge_command(
             std::env::current_exe().ok().as_deref(),
             launch.root.as_deref(),
             launch.chosen || launch.portable.dir.is_some(),
-            // Set by the AppImage's runtime to the file itself.
-            std::env::var_os("APPIMAGE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
-            // Set in a Flatpak sandbox to the app's id.
-            std::env::var("FLATPAK_ID").ok().as_deref(),
-        )),
+            &desktop::start::Packaging {
+                appimage: std::env::var_os("APPIMAGE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
+                flatpak_id: std::env::var("FLATPAK_ID").ok().as_deref(),
+                macos: cfg!(target_os = "macos"),
+            },
+        ),
     };
     // The data files open on a thread of their own, and the session is made there from them,
     // while the window shows how that goes (a file not closed properly is checked: minutes).

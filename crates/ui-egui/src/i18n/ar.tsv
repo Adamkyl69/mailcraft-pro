@@ -1832,7 +1832,7 @@ count	occurrences	مرات
 	Expires {when}	ينتهي {when}
 	For Claude Code:	لـ Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	لـ Claude Desktop، في claude_desktop_config.json:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	لا تتضمن MailCraft جسر تطبيقات الذكاء الاصطناعي على هذا النظام بعد، لذا لا يوجد مقتطف للنسخ. يوضح قسم «الثغرات المعروفة» في ملف README الخاص بالمشروع (docs/gaps.md) ما يمكن فعله بدلاً من ذلك.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	لا تتضمن MailCraft جسر تطبيقات الذكاء الاصطناعي على هذا النظام بعد، لذا لا يوجد مقتطف للنسخ. توضح صفحة «الثغرات المعروفة» (Known gaps) في المشروع (docs/gaps.md) ما يمكن فعله بدلاً من ذلك.
 	Last used {date}	آخر استخدام {date}
 	Made {date}	أُنشئ {date}
 	Make a token first	أنشئ رمزًا مميّزًا أولًا

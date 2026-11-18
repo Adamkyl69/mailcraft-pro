@@ -1832,7 +1832,7 @@ count	occurrences	פעמים
 	Expires {when}	פג תוקף {when}
 	For Claude Code:	עבור Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	עבור Claude Desktop, בקובץ claude_desktop_config.json:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft עדיין לא כוללת את הגשר ליישומי בינה מלאכותית במערכת זו, ולכן אין קטע להעתקה. הפרק Known gaps ב-README של הפרויקט (docs/gaps.md) מסביר מה לעשות במקום.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	MailCraft עדיין לא כוללת את הגשר ליישומי בינה מלאכותית במערכת זו, ולכן אין קטע להעתקה. הדף Known gaps של הפרויקט (docs/gaps.md) מסביר מה לעשות במקום.
 	Last used {date}	שימוש אחרון {date}
 	Made {date}	נוצר {date}
 	Make a token first	צור קודם אסימון

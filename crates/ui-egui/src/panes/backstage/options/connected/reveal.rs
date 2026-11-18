@@ -112,7 +112,7 @@ pub(super) fn new_token(s: &Session, t: &Tokens, ui: &mut Ui, acts: &mut Vec<Act
         } else {
             ui.add_space(6.0);
             let unpackaged =
-                tl!("MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.");
+                tl!("MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.");
             ui.add(egui::Label::new(RichText::new(unpackaged).color(t.text).size(12.5)).wrap());
         }
         ui.add_space(4.0);

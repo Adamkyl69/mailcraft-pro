@@ -1837,7 +1837,7 @@ count	occurrences	Terminen
 	Expires {when}	Läuft ab {when}
 	For Claude Code:	Für Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	Für Claude Desktop, in claude_desktop_config.json:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft liefert die Brücke für KI-Apps auf diesem System noch nicht mit, daher gibt es keinen Ausschnitt zum Kopieren. Der Abschnitt „Known gaps“ in der README des Projekts (docs/gaps.md) sagt, was stattdessen zu tun ist.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	MailCraft liefert die Brücke für KI-Apps auf diesem System noch nicht mit, daher gibt es keinen Ausschnitt zum Kopieren. Die Seite „Known gaps“ des Projekts (docs/gaps.md) sagt, was stattdessen zu tun ist.
 	Last used {date}	Zuletzt verwendet {date}
 	Made {date}	Erstellt {date}
 	Make a token first	Erstellen Sie zuerst ein Token

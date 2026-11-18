@@ -1837,7 +1837,7 @@ count	occurrences	kez
 	Expires {when}	Süresi {when} dolar
 	For Claude Code:	Claude Code için:
 	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop için, claude_desktop_config.json içinde:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft bu sistemde yapay zeka uygulamaları için köprüyü henüz pakete eklemiyor, bu yüzden kopyalanacak bir parça yok. Bunun yerine ne yapılacağı, projenin README dosyasındaki “Known gaps” bölümünde (docs/gaps.md) anlatılıyor.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	MailCraft bu sistemde yapay zeka uygulamaları için köprüyü henüz pakete eklemiyor, bu yüzden kopyalanacak bir parça yok. Bunun yerine ne yapılacağı, projenin “Known gaps” sayfasında (docs/gaps.md) anlatılıyor.
 	Last used {date}	Son kullanım {date}
 	Made {date}	Oluşturulma {date}
 	Make a token first	Önce bir belirteç oluşturun

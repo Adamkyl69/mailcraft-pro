@@ -1833,7 +1833,7 @@ count	occurrences	回
 	Expires {when}	{when} に期限切れ
 	For Claude Code:	Claude Code の場合:
 	For Claude Desktop, in claude_desktop_config.json:	Claude Desktop の場合 (claude_desktop_config.json):
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	このシステムでは、AI アプリ用のブリッジはまだ MailCraft に含まれていないため、コピーするスニペットはありません。代わりの方法は、プロジェクトの README の「Known gaps」の節 (docs/gaps.md) に書かれています。
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	このシステムでは、AI アプリ用のブリッジはまだ MailCraft に含まれていないため、コピーするスニペットはありません。代わりの方法は、プロジェクトの「Known gaps」ページ (docs/gaps.md) に書かれています。
 	Last used {date}	最終使用 {date}
 	Made {date}	作成 {date}
 	Make a token first	先にトークンを作成してください

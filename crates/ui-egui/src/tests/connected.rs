@@ -153,7 +153,7 @@ fn the_card_says_when_there_is_no_bridge_to_name() {
     let (mut a, _) = app("connected-no-bridge");
     let ctx = egui::Context::default();
     wired(&mut a);
-    let sentence = "MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.";
+    let sentence = "MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.";
     let shown = |a: &mut MailApp| {
         options(&ctx, a);
         // A window tall enough for the whole page: the card is its last one.

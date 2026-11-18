@@ -1832,7 +1832,7 @@ count	occurrences	keer
 	Expires {when}	Verloopt {when}
 	For Claude Code:	Voor Claude Code:
 	For Claude Desktop, in claude_desktop_config.json:	Voor Claude Desktop, in claude_desktop_config.json:
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft levert de brug voor AI-apps op dit systeem nog niet mee, dus er is geen fragment om te kopiëren. Het gedeelte „Known gaps” in de README van het project (docs/gaps.md) zegt wat je in plaats daarvan kunt doen.
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	MailCraft levert de brug voor AI-apps op dit systeem nog niet mee, dus er is geen fragment om te kopiëren. De pagina „Known gaps” van het project (docs/gaps.md) zegt wat je in plaats daarvan kunt doen.
 	Last used {date}	Laatst gebruikt {date}
 	Made {date}	Gemaakt {date}
 	Make a token first	Maak eerst een token

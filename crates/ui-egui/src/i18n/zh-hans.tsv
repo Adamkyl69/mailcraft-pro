@@ -1833,7 +1833,7 @@ count	occurrences	次
 	Expires {when}	{when} 到期
 	For Claude Code:	适用于 Claude Code：
 	For Claude Desktop, in claude_desktop_config.json:	适用于 Claude Desktop，在 claude_desktop_config.json 中：
-	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The Known gaps section of the project's README (docs/gaps.md) says what to do instead.	MailCraft 目前在此系统上还没有打包 AI 应用所用的桥接程序，因此没有可复制的代码片段。替代做法见项目 README 的“Known gaps”一节（docs/gaps.md）。
+	MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. The project's Known gaps page (docs/gaps.md) says what to do instead.	MailCraft 目前在此系统上还没有打包 AI 应用所用的桥接程序，因此没有可复制的代码片段。替代做法见项目的“Known gaps”页面（docs/gaps.md）。
 	Last used {date}	上次使用 {date}
 	Made {date}	创建于 {date}
 	Make a token first	请先创建令牌

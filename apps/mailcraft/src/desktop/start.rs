@@ -36,8 +36,8 @@ pub(crate) struct Packaging<'a> {
 
 /// How an AI app starts the bridge: in a Flatpak (`flatpak_id` is `$FLATPAK_ID`), `flatpak run
 /// --command=mailcraft-cli <id> mcp` on the host, since the program inside the sandbox can't be
-/// run from outside it (the token is given as an `--env=` argument: `flatpak run` doesn't pass
-/// the caller's environment on); the AppImage file itself when MailCraft runs from one
+/// run from outside it (`flatpak run` passes the caller's environment on, so the token stays in
+/// the snippet's environment as everywhere); the AppImage file itself when MailCraft runs from one
 /// (`appimage` is `$APPIMAGE`: its `AppRun` takes `mcp` as the first argument, and the file keeps
 /// its path where the temporary mount the running program is in changes on every launch); else
 /// `mailcraft-cli` beside this program when it's there, else by name (found on the path), with
@@ -53,7 +53,7 @@ pub(crate) fn bridge_command(
     pass_data: bool,
     packaging: &Packaging,
 ) -> Option<mailcraft_engine::mcp::BridgeCommand> {
-    use mailcraft_engine::mcp::{BridgeCommand, TOKEN_PLACEHOLDER_ARG};
+    use mailcraft_engine::mcp::BridgeCommand;
     let Packaging { appimage, flatpak_id, macos } = *packaging;
     let mut args = vec!["mcp".to_string()];
     if let Some(root) = root.filter(|_| pass_data) {
@@ -63,7 +63,7 @@ pub(crate) fn bridge_command(
     // An application id is letters, digits, dots, dashes and underscores; anything else is no id.
     let plain = |id: &&str| !id.is_empty() && !id.starts_with(['.', '-']) && id.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c));
     if let Some(id) = flatpak_id.filter(plain) {
-        let head = ["run", "--command=mailcraft-cli", TOKEN_PLACEHOLDER_ARG, id].map(str::to_string);
+        let head = ["run", "--command=mailcraft-cli", id].map(str::to_string);
         return Some(BridgeCommand { program: "flatpak".into(), args: head.into_iter().chain(args).collect() });
     }
     let name = if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" };
@@ -200,10 +200,9 @@ mod tests {
         let id = "io.github.zidan44.MailCraft";
         let sandboxed = bc(Some(&exe), Some(&root), false, None, Some(id));
         assert_eq!(sandboxed.program, "flatpak");
-        assert_eq!(sandboxed.args, ["run", "--command=mailcraft-cli", mailcraft_engine::mcp::TOKEN_PLACEHOLDER_ARG, id, "mcp"]);
+        assert_eq!(sandboxed.args, ["run", "--command=mailcraft-cli", id, "mcp"]);
         let with_data = bc(None, Some(&root), true, Some(&image), Some(id));
-        assert_eq!(with_data.args[4..], ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()], "the --data rule is the same");
-        assert_eq!(sandboxed.args_with_token("mcp_x")[2], "--env=MAILCRAFT_MCP_TOKEN=mcp_x");
+        assert_eq!(with_data.args[3..], ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()], "the --data rule is the same");
         for odd in ["", "-x", ".x", "a b", "a/b", "x;rm"] {
             assert_eq!(bc(None, None, false, None, Some(odd)), by_name(&["mcp"]), "{odd:?} is no application id");
         }

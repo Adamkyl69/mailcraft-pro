@@ -9,7 +9,7 @@ use super::*;
 /// by hand so the command comes first, as people read it).
 pub(super) fn desktop_snippet(b: &BridgeCommand, token: &str) -> String {
     let text = |s: &str| serde_json::to_string(s).unwrap_or_default();
-    let args: Vec<String> = b.args_with_token(token).iter().map(|a| format!("        {}", text(a))).collect();
+    let args: Vec<String> = b.args.iter().map(|a| format!("        {}", text(a))).collect();
     [
         "{".to_string(),
         "  \"mcpServers\": {".to_string(),
@@ -73,7 +73,7 @@ fn windows_escaped(word: &str) -> String {
 
 /// The line that adds MailCraft to Claude Code.
 pub(super) fn code_snippet(b: &BridgeCommand, token: &str) -> String {
-    let args: Vec<String> = b.args_with_token(token).iter().map(|a| quoted(a)).collect();
+    let args: Vec<String> = b.args.iter().map(|a| quoted(a)).collect();
     format!("claude mcp add mailcraft --env MAILCRAFT_MCP_TOKEN={token} -- {} {}", quoted(&b.program), args.join(" "))
 }
 
@@ -156,19 +156,27 @@ mod tests {
         }
     }
 
-    /// A Flatpak's bridge gets the token as an argument, since `flatpak run` doesn't pass the
-    /// environment on; both snippets carry it there and in the environment.
+    /// The token is in the snippet's environment only: the command and its arguments can be read
+    /// by other accounts on the computer (`/proc/<pid>/cmdline`), the environment can't.
     #[test]
-    fn the_token_goes_where_the_command_asks_for_it() {
-        let b = bridge(
-            "flatpak",
-            &["run", "--command=mailcraft-cli", mailcraft_engine::mcp::TOKEN_PLACEHOLDER_ARG, "io.github.zidan44.MailCraft", "mcp"],
-        );
-        let v: Value = serde_json::from_str(&desktop_snippet(&b, "mcp_x")).unwrap_or_default();
-        assert_eq!(v["mcpServers"]["mailcraft"]["args"][2], "--env=MAILCRAFT_MCP_TOKEN=mcp_x");
-        let line = code_snippet(&b, "mcp_x");
-        assert!(line.contains("-- flatpak run --command=mailcraft-cli --env=MAILCRAFT_MCP_TOKEN=mcp_x io.github.zidan44.MailCraft mcp"), "{line}");
-        assert!(!line.contains("{MAILCRAFT"), "{line}");
+    fn no_snippet_has_the_token_in_the_command_or_its_arguments() {
+        let token = "mcp_secrettoken";
+        for b in [
+            bridge("/usr/bin/mailcraft-cli", &["mcp"]),
+            bridge("flatpak", &["run", "--command=mailcraft-cli", "io.github.zidan44.MailCraft", "mcp", "--data", "/x y"]),
+            bridge(r"C:\Program Files\MailCraft\mailcraft-cli.exe", &["mcp"]),
+        ] {
+            let v: Value = serde_json::from_str(&desktop_snippet(&b, token)).unwrap_or_default();
+            let entry = &v["mcpServers"]["mailcraft"];
+            assert!(!entry["command"].to_string().contains(token) && !entry["args"].to_string().contains(token), "{entry}");
+            assert_eq!(entry["env"]["MAILCRAFT_MCP_TOKEN"], token, "it is in the environment");
+            // Claude Code's line: the token only in claude's own `--env`, before the `--` that
+            // starts the bridge's command.
+            let line = code_snippet(&b, token);
+            let (claude, bridge_command) = line.split_once(" -- ").unwrap_or_default();
+            assert!(claude.contains(&format!("--env MAILCRAFT_MCP_TOKEN={token}")), "{line}");
+            assert!(!bridge_command.contains(token), "{line}");
+        }
     }
 
     #[test]
@@ -237,7 +245,7 @@ mod tests {
         let program = r"C:\Program Files\MailCraft\mailcraft-cli.exe";
         for data in [r"D:\my mail", r"D:\my mail\", r"\\server\share\my mail\", r#"D:\"quoted" mail\"#] {
             let b = bridge(program, &["mcp", "--data", data]);
-            let args: Vec<String> = b.args_with_token("mcp_x").iter().map(|a| quoted_for(a, true)).collect();
+            let args: Vec<String> = b.args.iter().map(|a| quoted_for(a, true)).collect();
             let line = format!("{} {}", quoted_for(&b.program, true), args.join(" "));
             let want = vec![program.to_string(), "mcp".into(), "--data".into(), data.to_string()];
             assert_eq!(windows_args(&line), want, "{line}");

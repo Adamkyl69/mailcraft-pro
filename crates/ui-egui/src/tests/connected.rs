@@ -146,6 +146,32 @@ fn a_click_runs_a_command_only_the_card_can_run() {
     assert_eq!(a.session.mcp.settings.tokens.len(), 1, "a script can't revoke either");
 }
 
+/// With a bridge command the new token comes with its two snippets; without one (a macOS build),
+/// a line saying the bridge isn't packaged, and no snippet that names a program that isn't there.
+#[test]
+fn the_card_says_when_there_is_no_bridge_to_name() {
+    let (mut a, _) = app("connected-no-bridge");
+    let ctx = egui::Context::default();
+    wired(&mut a);
+    let sentence = "MailCraft doesn't package the bridge for AI apps on this system yet, so there is no snippet to copy. See the known gaps.";
+    let shown = |a: &mut MailApp| {
+        options(&ctx, a);
+        // A window tall enough for the whole page: the card is its last one.
+        let size = egui::vec2(1280.0, 9000.0);
+        drawn_with(&ctx, a, size, vec![]).into_iter().map(|d| d.text).collect::<Vec<_>>().join("\n")
+    };
+    owner(&mut a, "mcp.createToken", json!({"name": "Claude Desktop"}));
+    let with = shown(&mut a);
+    assert!(with.contains("For Claude Code:") && !with.contains(sentence), "{with}");
+    owner(&mut a, "mcp.dismissToken", json!({}));
+    a.session.mcp.bridge = None;
+    owner(&mut a, "mcp.createToken", json!({"name": "Claude Desktop"}));
+    let without = shown(&mut a);
+    assert!(without.contains(sentence), "{without}");
+    assert!(!without.contains("For Claude Code:") && !without.contains("claude_desktop_config.json"), "no snippet without a program to name");
+    assert!(without.contains("Copy this token now"), "the token is still shown");
+}
+
 #[test]
 fn the_qr_code_is_dark_squares_on_white_in_both_themes() {
     let (mut a, _) = app("connected-qr");

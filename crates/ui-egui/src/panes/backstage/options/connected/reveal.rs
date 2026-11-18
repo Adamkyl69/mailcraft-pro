@@ -33,10 +33,22 @@ pub(super) fn desktop_snippet(b: &BridgeCommand, token: &str) -> String {
     .join("\n")
 }
 
-/// A word of a shell command, in double quotes when it holds anything a shell would split or read.
+/// A word of a shell command, quoted when it holds anything a shell would split or read: in
+/// single quotes for a POSIX shell (where nothing inside them is special, a `'` becoming `'\''`),
+/// in double quotes on Windows (cmd and PowerShell).
 fn quoted(word: &str) -> String {
-    let plain = !word.is_empty() && word.chars().all(|c| c.is_ascii_alphanumeric() || "_-./:\\@%+=,".contains(c));
-    if plain { word.to_string() } else { format!("\"{}\"", word.replace('"', "\\\"")) }
+    quoted_for(word, cfg!(windows))
+}
+
+fn quoted_for(word: &str, windows: bool) -> String {
+    let safe = |c: char| c.is_ascii_alphanumeric() || "_-./:@%+=,".contains(c) || (windows && c == '\\');
+    if !word.is_empty() && word.chars().all(safe) {
+        word.to_string()
+    } else if windows {
+        format!("\"{}\"", word.replace('"', "\\\""))
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
 }
 
 /// The line that adds MailCraft to Claude Code.
@@ -110,9 +122,28 @@ mod tests {
     fn the_claude_code_line_quotes_what_a_shell_would_split() {
         let plain = code_snippet(&bridge("/usr/bin/mailcraft-cli", &["mcp"]), "mcp_x");
         assert_eq!(plain, "claude mcp add mailcraft --env MAILCRAFT_MCP_TOKEN=mcp_x -- /usr/bin/mailcraft-cli mcp");
-        let spaced = code_snippet(&bridge("/opt/Mail Craft/mailcraft-cli", &["mcp", "--data", "/home/me/my mail"]), "mcp_x");
-        assert!(spaced.ends_with("-- \"/opt/Mail Craft/mailcraft-cli\" mcp --data \"/home/me/my mail\""), "{spaced}");
-        assert_eq!(quoted("a\"b"), "\"a\\\"b\"");
-        assert_eq!(quoted(""), "\"\"");
+        if !cfg!(windows) {
+            let spaced = code_snippet(&bridge("/opt/Mail Craft/mailcraft-cli", &["mcp", "--data", "/home/me/my mail"]), "mcp_x");
+            assert!(spaced.ends_with("-- '/opt/Mail Craft/mailcraft-cli' mcp --data '/home/me/my mail'"), "{spaced}");
+        }
+    }
+
+    #[test]
+    fn a_posix_shell_gets_single_quotes_that_nothing_inside_can_break() {
+        assert_eq!(quoted_for("/home/a b/x", false), "'/home/a b/x'");
+        assert_eq!(quoted_for("/home/$HOME/x", false), "'/home/$HOME/x'");
+        assert_eq!(quoted_for("/home/`id`/x", false), "'/home/`id`/x'");
+        assert_eq!(quoted_for(r"/home/a\b", false), r"'/home/a\b'");
+        assert_eq!(quoted_for("/home/it's/x", false), r"'/home/it'\''s/x'");
+        assert_eq!(quoted_for("", false), "''");
+        assert_eq!(quoted_for("/usr/bin/cli", false), "/usr/bin/cli");
+    }
+
+    #[test]
+    fn windows_keeps_double_quotes_and_its_backslashes() {
+        assert_eq!(quoted_for(r"C:\Mail\cli.exe", true), r"C:\Mail\cli.exe");
+        assert_eq!(quoted_for(r"C:\Program Files\cli.exe", true), r#""C:\Program Files\cli.exe""#);
+        assert_eq!(quoted_for("a\"b", true), "\"a\\\"b\"");
+        assert_eq!(quoted_for("", true), "\"\"");
     }
 }

@@ -22,14 +22,22 @@ fn random(n: usize) -> Option<Vec<u8>> {
     mailcraft_net::oauth::random_bytes(n).ok()
 }
 
-/// How an AI app starts the bridge: `mailcraft-cli` beside this program when it's there, else
-/// by name (found on the path), with `--data` when this MailCraft's data folder isn't the
-/// default one (`pass_data`: it was chosen at start, or MailCraft is portable). Shown on screen
-/// only, never written to the log or a file.
-pub(crate) fn bridge_command(exe: Option<&std::path::Path>, root: Option<&std::path::Path>, pass_data: bool) -> mailcraft_engine::mcp::BridgeCommand {
+/// How an AI app starts the bridge: the AppImage file itself when MailCraft runs from one
+/// (`appimage` is `$APPIMAGE`: its `AppRun` takes `mcp` as the first argument, and the file keeps
+/// its path where the temporary mount the running program is in changes on every launch); else
+/// `mailcraft-cli` beside this program when it's there, else by name (found on the path), with
+/// `--data` when this MailCraft's data folder isn't the default one (`pass_data`: it was chosen
+/// at start, or MailCraft is portable). Shown on screen only, never written to the log or a file.
+pub(crate) fn bridge_command(
+    exe: Option<&std::path::Path>,
+    root: Option<&std::path::Path>,
+    pass_data: bool,
+    appimage: Option<&std::path::Path>,
+) -> mailcraft_engine::mcp::BridgeCommand {
     let name = if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" };
     let beside = exe.and_then(std::path::Path::parent).map(|dir| dir.join(name)).filter(|p| p.is_file());
-    let program = beside.map_or_else(|| "mailcraft-cli".to_string(), |p| p.to_string_lossy().into_owned());
+    let appimage = appimage.filter(|p| p.is_absolute() && p.is_file());
+    let program = appimage.or(beside.as_deref()).map_or_else(|| "mailcraft-cli".to_string(), |p| p.to_string_lossy().into_owned());
     let mut args = vec!["mcp".to_string()];
     if let Some(root) = root.filter(|_| pass_data) {
         args.push("--data".into());
@@ -133,14 +141,30 @@ mod tests {
             program: "mailcraft-cli".into(),
             args: args.iter().map(|a| a.to_string()).collect(),
         };
-        assert_eq!(bridge_command(Some(&exe), Some(&root), false), by_name(&["mcp"]), "none beside it: found by name");
-        assert_eq!(bridge_command(None, None, true), by_name(&["mcp"]), "no folder to name");
+        assert_eq!(bridge_command(Some(&exe), Some(&root), false, None), by_name(&["mcp"]), "none beside it: found by name");
+        assert_eq!(bridge_command(None, None, true, None), by_name(&["mcp"]), "no folder to name");
         let cli = dir.join(if cfg!(windows) { "mailcraft-cli.exe" } else { "mailcraft-cli" });
         std::fs::write(&cli, b"").unwrap();
-        let with = bridge_command(Some(&exe), Some(&root), true);
+        let with = bridge_command(Some(&exe), Some(&root), true, None);
         assert_eq!(with.program, cli.to_string_lossy());
         assert_eq!(with.args, ["mcp".to_string(), "--data".into(), root.to_string_lossy().into_owned()]);
-        assert_eq!(bridge_command(Some(&exe), Some(&root), false).args, ["mcp"], "the default folder needs none");
+        assert_eq!(bridge_command(Some(&exe), Some(&root), false, None).args, ["mcp"], "the default folder needs none");
+
+        // From an AppImage: the file itself (its AppRun takes `mcp`), not the temporary mount's
+        // copy beside the running program.
+        let image = dir.join("MailCraft.AppImage");
+        std::fs::write(&image, b"").unwrap();
+        let from_image = bridge_command(Some(&exe), Some(&root), true, Some(&image));
+        assert_eq!(from_image.program, image.to_string_lossy());
+        assert_eq!(from_image.args, with.args, "the --data rule is the same");
+        assert_eq!(bridge_command(Some(&exe), None, false, Some(&image)).args, ["mcp"]);
+        let gone = dir.join("moved.AppImage");
+        assert_eq!(bridge_command(Some(&exe), None, false, Some(&gone)).program, cli.to_string_lossy(), "a file that isn't there is not used");
+        assert_eq!(
+            bridge_command(None, None, false, Some(std::path::Path::new("MailCraft.AppImage"))),
+            by_name(&["mcp"]),
+            "a relative path would depend on where the app runs"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

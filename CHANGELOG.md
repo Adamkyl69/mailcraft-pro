@@ -26,6 +26,7 @@ on GitHub.
 
 ### Fixed
 
+- Connected apps from the AppImage: the snippets name the AppImage file itself (its `mcp` entry starts the bridge) instead of a path inside the temporary mount, which changed on every launch.
 - In the dark theme, the segment of a switch under the pointer (File › Options › Theme, Reading pane and the others) no longer looks chosen: it was lighter than the segment that was.
 
 ## 0.40.0 - 2026-11-17

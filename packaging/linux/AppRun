@@ -1,0 +1,8 @@
+#!/bin/sh
+# The AppImage's entry point. `mcp` as the first argument runs the MCP bridge
+# (usr/bin/mailcraft-cli mcp ...); anything else starts MailCraft, as before.
+HERE="$(dirname "$(readlink -f "$0")")"
+if [ "${1:-}" = "mcp" ]; then
+  exec "$HERE/usr/bin/mailcraft-cli" "$@"
+fi
+exec "$HERE/usr/bin/mailcraft" "$@"

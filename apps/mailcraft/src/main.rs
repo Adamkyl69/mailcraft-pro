@@ -328,6 +328,8 @@ fn main() -> eframe::Result {
             std::env::current_exe().ok().as_deref(),
             launch.root.as_deref(),
             launch.chosen || launch.portable.dir.is_some(),
+            // Set by the AppImage's runtime to the file itself.
+            std::env::var_os("APPIMAGE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from).as_deref(),
         )),
     };
     // The data files open on a thread of their own, and the session is made there from them,

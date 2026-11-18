@@ -137,7 +137,10 @@ if has appimage; then
   }
   APPDIR="$WORK/MailCraft.AppDir"
   cp -R "$STAGE" "$APPDIR"
-  ln -s usr/bin/mailcraft "$APPDIR/AppRun"
+  # `AppRun mcp ...` is the MCP bridge (MailCraft's Connected apps snippets run the AppImage that
+  # way, since the program's own path in the temporary mount changes on every launch); anything
+  # else starts the app. Tested by packaging/linux/apprun-test.sh.
+  install -m755 "$HERE/AppRun" "$APPDIR/AppRun"
   cp "$HERE/$APP_ID.desktop" "$APPDIR/$APP_ID.desktop"
   cp "$ROOT/assets/app-icon/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/$APP_ID.png"
   ln -s "$APP_ID.png" "$APPDIR/.DirIcon"

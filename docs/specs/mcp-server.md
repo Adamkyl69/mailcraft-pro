@@ -1,6 +1,6 @@
 # Design: MailCraft as a local MCP server
 
-Status: **approved by the owner**; being built.
+Status: **approved by the owner and built** (see README, "Use MailCraft from an AI app").
 
 ## Goal
 
